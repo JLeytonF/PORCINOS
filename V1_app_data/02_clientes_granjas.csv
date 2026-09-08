@@ -1,0 +1,2 @@
+cliente_id,fecha_registro,nombre_cliente,tipo_cliente,telefono,email,departamento,municipio,granja_id,nombre_granja,nit_o_documento,total_animales_cliente,observaciones
+CLI-0001,2026-08-06,Cliente Demo,Productor,3000000000,cliente@demo.com,Cundinamarca,Funza,GRA-0001,Granja Demo,900000000-0,2500,Registro inicial V1

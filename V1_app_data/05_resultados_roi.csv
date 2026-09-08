@@ -1,0 +1,2 @@
+resultado_id,caso_id,fecha_evaluacion,precio_kg_cerdo_cop,costo_kg_alimento_cop,reduccion_mortalidad_pct,puntos_fca_mejorados,kg_ganados_etapa,ahorro_antibioticos_cop,ahorro_mortalidad_cop,ahorro_fca_cop,beneficio_economico_total_cop,inversion_total_bioara_cop,beneficio_neto_cop,roi_pct,ratio_beneficio_costo
+RES-0001,CASO-0001,2026-08-20,8400,1900,1.2,0.08,18,450000,604800,1368000,2422800,991620,1431180,144.33,2.44

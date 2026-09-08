@@ -1,0 +1,32 @@
+fecha_actualizacion,producto,categoria,presentacion,unidad_presentacion,precio_unitario_cop,costo_referencia_por_kg_o_litro_cop,observaciones
+2026-08-11,BIOASIS,Extraido_PDF,1 kg,kg,178000,178000,Bioasis NF - 500 g
+2026-08-11,BUTYRIBIOL 2,Extraido_PDF,1 kg,kg,900000,900000,Butyribiol 2 - 5 K
+2026-08-11,Bio L.r.,Extraido_PDF,1 kg,kg,1,1,Bio-Lr - 5 K
+2026-08-11,BIO LPS,Extraido_PDF,1 L,L,247000,247000,Bio-LPS - Frasco x 1 L
+2026-08-11,HI-2,Extraido_PDF,1 kg,kg,178000,178000,H.I. 2 - unidad 1 K
+2026-08-11,BRONCOBIOL,Extraido_PDF,1 L,L,694000,694000,Broncobiol - Garrafa x 4 L
+2026-08-11,BIOPOL D-49,Extraido_PDF,1 L,L,1,1,BIOPOL D49 - Garrafa x 4 L
+2026-08-11,Bio-Protector,Farmacéutico_Apoyo,Sobre x 1 K,kg,45000,45000,Aditivo farmacéutico de apoyo; sobre x 1 kg
+2026-08-11,Bioenergetic,Farmacéutico_Apoyo,Jeringa x 20 ml,ml,43000,43000,Bioenergetic; jeringa x 20 ml
+2026-08-11,Triple AAA,Farmacéutico_Apoyo,Sobre x 500 g,g,84000,84000,Triple AAA para aves y cerdos; sobre x 500 g
+2026-08-11,Neutrobiol,Farmacéutico_Apoyo,Caja por 100 sobres,sobres,606000,606000,Neutrobiol; caja por 100 sobres
+2026-08-11,Broncobiol,Farmacéutico_Respiratorio,Garrafa x 4 L,L,150000,150000,Broncobiol; garrafa x 4 L
+2026-08-11,Broncobiol 20 L,Farmacéutico_Respiratorio,Garrafa x 20 L,L,694000,694000,Broncobiol; garrafa x 20 L
+2026-08-11,POLYBIOCIDEX NF,Desinfectante_Detergente_Biocida,4 L,L,50000,50000,Polybiodicex NF - Garrafa x 4 L a 200.000 COP; 20 L a 819.000 COP
+2026-08-11,PYAM,Detergente_Biocida,Tablet x 1,67 g,tab,2340,2340,Pyam - Tarro x 200 tabletas x 1,67 g a 468.000 COP
+2026-08-11,JELLKEM,Desinfectante_Detergente_Biocida,4 L,L,30000,30000,Jellkem - Garrafa x 4 L a 120.000 COP + IVA; 20 L a 518.000 COP + IVA
+2026-08-11,CLEANEX F48,Desinfectante_Detergente_Biocida,4 L,L,31950,31950,Cleanex F48 - Garrafa x 4 L a 127.800 COP + IVA; 20 L a 570.000 COP + IVA
+2026-08-11,Bio Fly,Control_Biologico_Moscas,Bolsa x 500 g,g,30000,30000,Control biológico de moscas; bolsa x 500 g
+2026-08-11,Trampa Atrapamoscas,Control_Moscas,1 unidad,und,60000,60000,Trampa para control físico de moscas
+2026-08-11,Brodifacoum pellets,Rodenticida,Balde 2.5 K,kg,414700,414700,Rodenticida granular; balde 2.5 K
+2026-08-11,Deltaforce 2,5% EC,Insecticida,Frasco x 1 L,L,504900,504900,Insecticida para control de insectos y vectores
+2026-08-11,ANALOGUE EC 10%,Insecticida,Frasco x 1 L,L,298000,298000,Insecticida de contacto para control de insectos
+2026-08-11,Diclorvos EC 50%,Insecticida,Frasco x 1 L,L,313000,313000,Insecticida para control de insectos
+2026-09-07,EUBIOL,Probiotico_con_electrolitos,Bolsa x 1 kg y 10 kg,kg,86000,86000,Ficha tecnica: presentacion bolsa 1 kg y 10 kg; lista de precios 2026 confirma 1K a 86.000 COP
+2026-09-07,BACTERINA HS F,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,BACTERINA PLEUROSUIS,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,BACTERINA MYCOSUIS HP,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,BACTERINA TOXOIDE E. COLI,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,E. COLI ORAL,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,CEPA F,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,PRRSv,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar

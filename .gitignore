@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Temporales y logs
+*.log
+*.tmp
+*.bak
+_tmp_*
+
+# Archivos binarios grandes (PDFs, docx, pptx ya rastreados por separado)
+*.pdf
+*.docx
+*.doc
+*.pptx
+*.ppt
+*.xlsx
+*.xls
+
+# Outputs del pipeline HARNESS
+V1_app_data/harness_outputs/
+
+# Imágenes de datos crudos (demasiado pesadas para el repo)
+impresion_pdf/
+
+# Secrets / .env
+.env
+.env.*
+!.env.example

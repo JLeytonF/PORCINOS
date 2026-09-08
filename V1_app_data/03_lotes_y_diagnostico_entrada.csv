@@ -1,0 +1,2 @@
+caso_id,fecha_caso,cliente_id,granja_id,lote_id,etapa_productiva,edad_dias,peso_promedio_kg,numero_animales_lote,numero_animales_a_tratar,linea_genetica,via_preferida,desafio_principal,sintomas_clave,mortalidad_actual_pct,fca_actual,temperatura_ambiente_c,observaciones
+CASO-0001,2026-08-06,CLI-0001,GRA-0001,LOTE-001,Pre_iniciador,35,12,500,500,PIC,Agua_Alimento,Digestivo,Disbiosis_postdestete,4.0,1.65,27,Registro de ejemplo

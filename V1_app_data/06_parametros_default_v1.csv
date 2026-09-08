@@ -1,0 +1,9 @@
+parametro,valor,unidad,descripcion
+TC_USD_COP,4200,COP_por_USD,Tasa referencia para homologacion
+COSTO_ALIMENTO,1900,COP_por_kg,Valor default si el usuario no lo entrega
+PRECIO_CERDO_VIVO,8400,COP_por_kg,Valor default si el usuario no lo entrega
+MORTALIDAD_BASE_PRECEBO,4.0,pct,Default tecnico V1
+FCA_BASE_PRECEBO,1.65,ratio,Default tecnico V1
+REDUCCION_MORTALIDAD_ESCENARIO,1.2,puntos_pct,Escenario conservador ROI
+MEJORA_FCA_ESCENARIO,0.08,puntos,Escenario conservador ROI
+AHORRO_ANTIBIOTICOS_ESCENARIO,450000,COP,Escenario conservador ROI

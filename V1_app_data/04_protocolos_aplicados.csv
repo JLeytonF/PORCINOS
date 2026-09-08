@@ -1,0 +1,5 @@
+aplicacion_id,caso_id,fecha_inicio,fecha_fin,producto,dosis_valor,dosis_unidad,via_administracion,consumo_agua_lote_l_dia,consumo_alimento_lote_kg_dia,cantidad_diaria_total,duracion_dias,cantidad_total_tratamiento,costo_unitario_cop,inversion_producto_cop,responsable
+APL-0001,CASO-0001,2026-08-06,2026-08-19,Bio L.r.,150,g_1000L,Agua,720,300,108_g_dia,14,1.512_kg,95000,143640,Equipo_Tecnico
+APL-0002,CASO-0001,2026-08-06,2026-08-12,HI-2,1.5,kg_1000L,Agua,720,300,1.08_kg_dia,7,7.56_kg,68000,514080,Equipo_Tecnico
+APL-0003,CASO-0001,2026-08-06,2026-08-19,BUTYRIBIOL 2,0.75,kg_ton,Alimento,720,300,0.225_kg_dia,14,3.15_kg,82000,258300,Equipo_Tecnico
+APL-0004,CASO-0001,2026-08-06,2026-08-19,BIO LPS,150,g_ton,Alimento,720,300,45_g_dia,14,0.63_kg,120000,75600,Equipo_Tecnico

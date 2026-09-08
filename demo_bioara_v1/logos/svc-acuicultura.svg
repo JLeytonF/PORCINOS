@@ -1,0 +1,12 @@
+<svg width="88" height="88" viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Acuicultura">
+  <circle cx="44" cy="44" r="43" fill="url(#bg)" stroke="rgba(255,255,255,0.35)"/>
+  <path d="M19 45.5C24.7 37.7 33.8 33 43.7 33C54 33 63.4 38.1 69 46.4C63.5 45.1 59 43.5 54.9 41.8C50 39.7 45 38.6 40.1 39.4C32.4 40.6 25.5 44.7 19 45.5Z" fill="#EFFFFB" opacity="0.92"/>
+  <path d="M20 43.6C23.9 45.7 28.7 47.7 34.3 49.2C39.2 50.5 44 50.3 48.9 48.8C54.8 47 60.9 44.1 68.4 42.2C63.7 50.1 55.1 55 45.8 55C35.5 55 26.1 50.6 20 43.6Z" fill="#F5FFFD"/>
+  <circle cx="50.2" cy="43.8" r="1.6" fill="#2E6C79"/>
+  <defs>
+    <linearGradient id="bg" x1="14" y1="8" x2="73" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6EAFC0"/>
+      <stop offset="1" stop-color="#3F7F8E"/>
+    </linearGradient>
+  </defs>
+</svg>
