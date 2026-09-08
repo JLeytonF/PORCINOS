@@ -1,0 +1,9 @@
+{
+  "name": "BioARA Swine AI Demo V1",
+  "short_name": "BioARA V1",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f8f6",
+  "theme_color": "#0b5d47",
+  "icons": []
+}

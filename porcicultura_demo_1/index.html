@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b5d47" />
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TOKEN GATE — Debe ser el PRIMER script en <head>.
+       Si el token ?t= no coincide, redirige antes de renderizar nada.
+       Token de acceso: porc2026-EvalDemo-x7K9mQz
+       ════════════════════════════════════════════════════════════════════ -->
+  <script src="./app/token-gate.js"></script>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       CONFIGURACIÓN DE GOOGLE SHEETS
+       Completar sheetId y appsScriptUrl DESPUÉS del despliegue del Apps Script.
+       Ver README_DEPLOY.md → Pasos 2-3.
+       ════════════════════════════════════════════════════════════════════ -->
+  <script>
+    window.DEMO_SHEETS_CONFIG = {
+      /* URL completa de la pestaña Config publicada como CSV
+         Formato: https://docs.google.com/spreadsheets/d/e/XXXX/pub?output=csv */
+      configCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSROvOgzv5iLxsZn9pH9gZHD9SlDXg9MNgxGMdrnP1I-K5oFQ72RL2dbUPRi8N40UxHtPCa9Trme-Le/pub?output=csv",
+
+      /* URL del Google Apps Script Web App (completar después del deploy de Code.gs) */
+      appsScriptUrl: ""
+    };
+  </script>
+
+  <title>Porcicultura Demo 1 — BioARA AI</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./styles.css?v=20260907r12" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-logos">
+        <img src="./logos/bioara.webp" alt="BioARA" class="brand-logo brand-logo-main" />
+      </div>
+      <div>
+        <h1>BioARA AI</h1>
+        <p class="subtitle">Demo Porcicultura 1 — Evaluación externa</p>
+      </div>
+    </div>
+    <div class="status-wrap">
+      <span id="networkBadge" class="badge offline">Sin red</span>
+      <button id="installBtn" class="ghost" hidden>Instalar app</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card service-selector-card" aria-labelledby="serviceSelectorTitle">
+      <h2 id="serviceSelectorTitle">Líneas de servicios</h2>
+      <p class="helper">Por ahora, la aplicación opera en <strong>Porcicultura</strong>. Las demás líneas quedan listas para habilitación progresiva.</p>
+      <div id="serviceLineSelector" class="service-grid" role="radiogroup" aria-label="Línea de servicio activa">
+        <button type="button" class="service-tile" data-service-line="avicultura" data-available="false" aria-pressed="false" aria-label="Avicultura, próxima disponibilidad">
+          <span class="service-name">Avicultura</span>
+          <span class="service-state">Próximamente</span>
+        </button>
+        <button type="button" class="service-tile" data-service-line="acuicultura" data-available="false" aria-pressed="false" aria-label="Acuicultura, próxima disponibilidad">
+          <span class="service-name">Acuicultura</span>
+          <span class="service-state">Próximamente</span>
+        </button>
+        <button type="button" class="service-tile is-active" data-service-line="porcicultura" data-available="true" aria-pressed="true">
+          <span class="service-name">Porcicultura</span>
+          <span class="service-state">Activo</span>
+        </button>
+        <button type="button" class="service-tile" data-service-line="laboratorio" data-available="false" aria-pressed="false" aria-label="Laboratorio, próxima disponibilidad">
+          <span class="service-name">Laboratorio</span>
+          <span class="service-state">Próximamente</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Registro del Caso</h2>
+      <form id="caseForm" class="grid">
+        <input id="serviceLineInput" name="lineaServicio" type="hidden" value="porcicultura" />
+        <div id="saveMessage" class="save-message" aria-live="polite" hidden></div>
+
+        <section class="form-section form-section-client">
+          <div class="form-section-header">
+            <h3>Datos del cliente</h3>
+            <p>Información operativa y de contacto.</p>
+          </div>
+          <div class="form-section-grid">
+            <label>Cliente
+              <input name="cliente" required placeholder="Nombre cliente" />
+            </label>
+            <label>Granja
+              <input name="granja" required placeholder="Nombre granja" />
+            </label>
+            <label>Total animales cliente
+              <input name="totalAnimalesCliente" type="number" min="1" required />
+            </label>
+            <label>Animales a tratar
+              <input name="animalesTratar" type="number" min="1" required />
+            </label>
+            <label>Línea genética
+              <input name="genetica" placeholder="PIC, Hypor, Topigs..." />
+            </label>
+            <label>Email cliente
+              <input name="emailCliente" type="email" placeholder="cliente@ejemplo.com" />
+            </label>
+            <input name="emailBioara" type="hidden" value="asistentedeventas@bioarasa.com" />
+            <div class="responsables-bioara-block">
+              <span class="form-note">Tu especialista BioARA</span>
+              <select id="bioaraResponsibleSelect" class="responsible-select" aria-label="Tu especialista BioARA">
+                <option value="">Selecciona tu especialista BioARA</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section form-section-technical">
+          <div class="form-section-header">
+            <h3>Parámetros técnicos</h3>
+            <p>Datos productivos y económicos para el cálculo.</p>
+          </div>
+          <div class="form-section-grid">
+            <label>Fase
+              <select name="fase" required>
+                <option value="Pre-iniciador">Pre-iniciador</option>
+                <option value="Iniciador">Iniciador</option>
+                <option value="Levante">Levante</option>
+                <option value="Engorde">Engorde</option>
+                <option value="Gestante">Gestante</option>
+                <option value="Lactante">Lactante</option>
+              </select>
+            </label>
+            <label>Peso promedio (kg)
+              <input name="pesoPromedio" type="number" step="0.1" min="1" required />
+            </label>
+            <label>Edad (días)
+              <input name="edadDias" type="number" min="1" required />
+            </label>
+            <label>Vía preferida
+              <select name="viaPreferida" required>
+                <option value="Agua">Agua</option>
+                <option value="Alimento">Alimento</option>
+                <option value="Agua+Alimento">Agua + Alimento</option>
+              </select>
+            </label>
+            <div class="challenge-area-row">
+              <label>Desafío principal
+                <select name="desafio" required>
+                  <option value="Digestivo">Digestivo</option>
+                  <option value="Respiratorio">Respiratorio</option>
+                  <option value="Inmune">Inmune</option>
+                  <option value="Biologicos">Vacunas / Biológicos</option>
+                  <option value="Estres">Estrés</option>
+                  <option value="Nutricional_Metabolico">Nutricional / Metabólico</option>
+                  <option value="Bioseguridad">Bioseguridad</option>
+                </select>
+              </label>
+              <label id="biosecurityAreaField" class="biosecurity-area-field" hidden>Área tratada (m²)
+                <input name="areaTratadaM2" type="number" min="1" step="0.01" placeholder="Ej. 1200" />
+                <span class="helper">Requerido solo para Bioseguridad.</span>
+              </label>
+            </div>
+            <label>Costo alimento (COP/kg)
+              <input name="costoAlimento" type="number" step="1" min="1" value="1623" required />
+            </label>
+            <label>Precio cerdo vivo (COP/kg)
+              <input name="precioCerdo" type="number" step="1" min="1" value="6380" required />
+            </label>
+            <label>Mortalidad actual (%)
+              <input name="mortalidad" type="number" step="0.01" min="0" value="4" required />
+            </label>
+            <label>FCA actual
+              <input name="fca" type="number" step="0.01" min="0.5" value="1.65" required />
+            </label>
+          </div>
+        </section>
+
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Resultado del Cálculo</h2>
+      <div id="result" class="result empty">Sin cálculo todavía.</div>
+
+      <div id="prioritySelectorPanel" class="priority-selector hidden" aria-live="polite">
+        <div class="priority-selector-header">
+          <div>
+            <span class="approval-kicker">Fase Prioridad 1</span>
+            <h3>Selección clínica manual (Médico veterinario)</h3>
+            <p class="helper">Selecciona uno o varios productos del catálogo base según el desafío principal del caso. El motor agregará reglas automáticas complementarias desde protocolos de porcicultura.</p>
+          </div>
+        </div>
+        <label class="priority-search-label">
+          Buscar producto en catálogo
+          <input id="priorityProductSearch" type="search" placeholder="Ejemplo: BIO LPS, Broncobiol, BIOPOL..." />
+        </label>
+        <div id="priorityProductList" class="priority-product-list"></div>
+      </div>
+
+      <div id="approvalPanel" class="approval-panel hidden" aria-live="polite">
+        <div class="approval-header">
+          <div>
+            <span class="approval-kicker">Revisión clínica</span>
+            <h3>Aprobación veterinaria</h3>
+          </div>
+          <span id="approvalStatus" class="status-badge status-pending">Pendiente</span>
+        </div>
+
+        <label class="approval-check">
+          <input id="veterinaryApproval" type="checkbox" />
+          Médico veterinario aprueba la recomendación
+        </label>
+
+        <label class="approval-label">
+          Observaciones del veterinario
+          <textarea id="veterinaryNotes" rows="4" placeholder="Ejemplo: aprobar 5 días, ajustar vigilancia, reforzar consumo de agua..."></textarea>
+        </label>
+
+        <div class="approval-actions">
+          <button type="button" id="approveDetailBtn">Aprobar y mostrar detalle</button>
+          <button type="button" id="printPdfBtn" class="secondary">Imprimir PDF</button>
+          <button type="button" id="sendEmailBtn" class="secondary">Enviar por correo</button>
+        </div>
+      </div>
+
+      <div class="actions actions-below-selector">
+        <button type="submit" form="caseForm">Calcular y guardar caso</button>
+        <button type="button" id="newCaseBtn" class="secondary" hidden>Nuevo caso</button>
+        <button type="button" id="refreshBenchmarkBtn" class="secondary">Actualizar benchmark</button>
+        <!-- sheets-patch.js reemplaza el texto y listener de este botón -->
+        <button type="button" id="syncBtn" class="secondary">Sincronizar con Sheets</button>
+        <button type="button" id="exportBtn" class="secondary">Exportar casos CSV</button>
+      </div>
+    </section>
+
+    <section class="card" id="priceCatalogSection" hidden>
+      <h2>Precios base del catálogo</h2>
+      <div id="priceCatalog" class="catalog-box"></div>
+    </section>
+
+    <section class="card">
+      <details class="support-panel history-panel">
+        <summary>Histórico local</summary>
+        <p class="helper">Todos los registros quedan guardados en este equipo, incluso sin internet.</p>
+        <div id="history"></div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>BioARA AI · Porcicultura Demo 1 · Evaluación temporal · <a href="mailto:gerencia@bioarasa.com">Contacto</a></small>
+  </footer>
+
+  <!-- Lógica principal (demo_bioara_v1 sin modificar) -->
+  <script type="module" src="./app/main.js?v=20260907r25"></script>
+
+  <!-- Enriquecimiento Google Sheets (solo Demo 1) -->
+  <script type="module" src="./app/sheets-patch.js"></script>
+</body>
+</html>
