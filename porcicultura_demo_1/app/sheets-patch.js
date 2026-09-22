@@ -65,12 +65,42 @@ function patchSyncButton() {
   });
 }
 
-/* ── 2. Cargar precios desde Config Sheet ─────────────────────────────── */
+/* ── 2. Cargar precios desde agente JEV (primero) o Sheet (fallback) ─── */
 async function applySheetConfig() {
-  if (!CONFIG_CSV_SRC) return;
-
   const form = document.getElementById("caseForm");
   if (!form) return;
+
+  // Intento 1: agente JEV — fuente de autoridad
+  try {
+    const resp = await fetch("/api/mercado/agentes/precios-porcicultura", {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.ok && (data.precioCerdoCopKg || data.costoAlimentoCopKg)) {
+        if (data.costoAlimentoCopKg && form.elements.costoAlimento) {
+          form.elements.costoAlimento.value = String(Math.round(data.costoAlimentoCopKg));
+        }
+        if (data.precioCerdoCopKg && form.elements.precioCerdo) {
+          form.elements.precioCerdo.value = String(Math.round(data.precioCerdoCopKg));
+        }
+        const banner = document.getElementById("saveMessage");
+        if (banner) {
+          const origen = data.origenListaPrecios || "BioARA JEV";
+          const fecha = data.vigente_al ? ` · vigente ${data.vigente_al}` : "";
+          banner.hidden = false;
+          banner.textContent = `Precios cargados desde ${origen}${fecha}`;
+        }
+        console.info("[Demo1] Precios cargados desde agente JEV:", data);
+        return; // éxito — no necesitamos Google Sheets
+      }
+    }
+  } catch (jevError) {
+    console.warn("[Demo1] Agente JEV no disponible, intentando Google Sheets:", jevError.message);
+  }
+
+  // Intento 2: Google Sheets (fallback)
+  if (!CONFIG_CSV_SRC) return;
 
   const defaults = await loadSheetConfig(CONFIG_CSV_SRC, CONFIG_GID).catch(err => {
     console.warn("[Demo1] No se pudo cargar config desde Sheet:", err.message);
@@ -92,7 +122,7 @@ async function applySheetConfig() {
     banner.textContent = `Precios cargados desde Google Sheets: ${defaults.origenListaPrecios}`;
   }
 
-  console.info("[Demo1] Precios actualizados desde Google Sheet:", defaults);
+  console.info("[Demo1] Precios cargados desde Google Sheet (fallback):", defaults);
 }
 
 /* ── 3. Auto-sync por MutationObserver en el mensaje de guardado ─────── */
@@ -141,8 +171,14 @@ if (!window.__DEMO1_AUTHORIZED) {
   console.warn("[Demo1] Módulo cargado sin autorización de token. Abortando.");
 } else {
   patchSyncButton();
-  applySheetConfig();
   watchForCaseSaves();
+
+  // Carga JEV exactamente cuando main.js termina refreshMarketDefaults().
+  // El evento bioara:benchmark-ready elimina la carrera: no hay timeout ni polling.
+  window.addEventListener("bioara:benchmark-ready", applySheetConfig, { once: true });
+
+  // Llamada inmediata de respaldo por si el evento ya pasó antes de registrarse.
+  applySheetConfig();
 
   console.info(
     "[Demo1] sheets-patch activo.",

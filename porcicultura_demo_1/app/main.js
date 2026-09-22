@@ -40,20 +40,9 @@ let technicalApprovalRows = [];
 let veterinaryApprovalConfirmed = false;
 
 const FALLBACK_BIOARA_RESPONSIBLES = [
-  { nombre: "Dr. Alejandro Rodríguez", email: "gerencia@bioarasa.com" },
-  { nombre: "Dra. Juliana Flórez", email: "asistentedeventas@bioarasa.com" },
-  { nombre: "Dra. Andrea Cadavid", email: "medellinavicultura@bioarasa.com" },
-  { nombre: "Dra. Lina Santa", email: "bucaramanga@bioarasa.com" },
-  { nombre: "Dra. Amanda Rodríguez", email: "dvacuicultura@bioarasa.com" },
-  { nombre: "Dr. Jorge Moreno", email: "gerenciadeventas@bioarasa.com" },
-  { nombre: "Dr. Jesús Díaz", email: "costabioara@bioarasa.com" },
-  { nombre: "Dr. Luis Cardona", email: "gerenciamedellin@bioarasa.com" },
-  { nombre: "Dra. Marianela Múnera", email: "distribuidoresmedellin@bioarasa.com" },
-  { nombre: "Dr. Juan Pablo Barón", email: "ponedoras@bioarasa.com" },
-  { nombre: "Dra. Olga Sánchez", email: "porcivalle@bioarasa.com" },
-  { nombre: "Dr. Daniel Velásquez", email: "medellinporcicultura@bioarasa.com" },
-  { nombre: "Dr. Ciro Carvajal", email: "valle@bioarasa.com" },
-  { nombre: "Dr. Claudio García", email: "zonacentro@bioarasa.com" }
+  { nombre: "Equipo PoultryIA", email: "business@poultryia.com" },
+  { nombre: "Soporte PoultryIA", email: "business@poultryia.com" },
+  { nombre: "Atención comercial PoultryIA", email: "business@poultryia.com" }
 ];
 
 const OFFICIAL_BIOARA_NAMES_BY_EMAIL = Object.fromEntries(
@@ -159,7 +148,6 @@ function renderPriorityProductList(searchText = "") {
 
   const term = String(searchText || "").trim().toLowerCase();
   const filtered = PRICE_CATALOG.filter((item) => {
-    if (item.estado === "pendiente por confirmar") return false;
     if (!term) return true;
     const haystack = `${item.producto} ${item.categoria} ${item.presentacion}`.toLowerCase();
     return haystack.includes(term);
@@ -224,10 +212,12 @@ function buildTechnicalApprovalRows(caseData = {}) {
       const protocol = protocolMap.get(String(item.producto || "").trim()) || null;
       const saved = savedRows.get(String(item.producto || "").trim()) || {};
 
+      const suggestedVia = String(caseData.viaPreferida || "Agua").trim() || "Agua";
       const suggestedDose = protocol?.cantidadDiaTexto || protocol?.doseUnit || "Según ficha técnica";
       const suggestedDays = protocol?.duracionDias ? String(protocol.duracionDias) : "";
-      const approvedDose = saved.doseText ?? suggestedDose;
-      const approvedDays = saved.daysText ?? suggestedDays;
+      const approvedVia = String(saved.viaAprobada || suggestedVia || "Agua").trim() || "Agua";
+      const approvedDose = saved.doseText ?? saved.dosisAprobada ?? suggestedDose;
+      const approvedDays = saved.daysText ?? saved.diasAprobados ?? suggestedDays;
 
       return {
         producto: item.producto,
@@ -235,6 +225,7 @@ function buildTechnicalApprovalRows(caseData = {}) {
         razon: item.razon,
         fuente: Array.isArray(item.fuentes) ? item.fuentes.join(" + ") : "",
         sugerido: protocol ? "Sí" : "Completar según ficha técnica",
+        viaAprobada: approvedVia,
         dosisSugerida: suggestedDose,
         diasSugeridos: suggestedDays,
         dosisAprobada: approvedDose,
@@ -247,9 +238,19 @@ function buildTechnicalApprovalRows(caseData = {}) {
 
 function getApprovedTechnicalProductNames() {
   return technicalApprovalRows
-    .filter((row) => row.aprobado && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0)
+    .filter((row) => row.aprobado && String(row.viaAprobada || "").trim() && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0)
     .map((row) => String(row.producto || "").trim())
     .filter(Boolean);
+}
+
+function hasCompleteTechnicalApproval(row) {
+  return Boolean(
+    row &&
+    String(row.viaAprobada || "").trim() &&
+    row.aprobado &&
+    String(row.dosisAprobada || "").trim() &&
+    Number(row.diasAprobados) > 0
+  );
 }
 
 function buildFinancialSnapshot(protocolRows = [], payload = {}) {
@@ -281,14 +282,33 @@ function buildFinancialSnapshot(protocolRows = [], payload = {}) {
 function rebuildApprovedCaseView() {
   if (!currentCaseData) return;
 
-  const approvedNames = new Set(getApprovedTechnicalProductNames());
+  const approvedRows = technicalApprovalRows.filter((row) => hasCompleteTechnicalApproval(row));
+  const approvedNames = new Set(approvedRows.map((row) => String(row.producto || "").trim()).filter(Boolean));
   const approvalActive = Boolean(veterinaryApprovalConfirmed) && approvedNames.size > 0;
   const originalProtocols = Array.isArray(currentCaseData.protocolos) ? currentCaseData.protocolos : [];
   const originalPriorityOne = Array.isArray(currentCaseData.unifiedPriorityOne) ? currentCaseData.unifiedPriorityOne : [];
   const originalPriorityMatrix = Array.isArray(currentCaseData.priorityOneMatrix) ? currentCaseData.priorityOneMatrix : [];
-
   const approvedProtocols = approvalActive
-    ? originalProtocols.filter((protocol) => approvedNames.has(String(protocol.producto || "").trim()))
+    ? originalProtocols.filter((protocol) => approvedNames.has(String(protocol.producto || "").trim())).map((protocol) => {
+        const row = approvedRows.find((item) => String(item.producto || "").trim() === String(protocol.producto || "").trim());
+        if (!row) return protocol;
+
+        const approvedDoseValue = Number.parseFloat(String(row.dosisAprobada || "0").replace(/[^0-9,.-]/g, "").replace(",", ".")) || Number(protocol.cantidadDia || 0);
+        const approvedDays = Number(row.diasAprobados || protocol.duracionDias || 1);
+        const route = String(row.viaAprobada || protocol.ruta || "").trim();
+
+        return {
+          ...protocol,
+          ruta: route,
+          duracionDias: approvedDays,
+          cantidadDia: approvedDoseValue,
+          cantidadDiaTexto: String(row.dosisAprobada || protocol.cantidadDiaTexto || ""),
+          totalKg: approvedDoseValue * approvedDays,
+          cantidadTotalTexto: `${approvedDoseValue * approvedDays} ${protocol.unidadDia || ""}`.trim(),
+          costo: Math.max(Number(protocol.costo || 0) * (approvedDoseValue / Math.max(Number(protocol.cantidadDia || approvedDoseValue || 1), 1)) * (approvedDays / Math.max(Number(protocol.duracionDias || approvedDays || 1), 1)), 0),
+          costoTexto: "Cotizar"
+        };
+      })
     : originalProtocols;
 
   const approvedPriorityOne = approvalActive
@@ -310,7 +330,13 @@ function rebuildApprovedCaseView() {
 }
 
 function isTechnicalApprovalComplete(row) {
-  return Boolean(row && row.aprobado && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0);
+  return Boolean(
+    row &&
+    String(row.viaAprobada || "").trim() &&
+    row.aprobado &&
+    String(row.dosisAprobada || "").trim() &&
+    Number(row.diasAprobados) > 0
+  );
 }
 
 function syncTechnicalApprovalRows(nextRows) {
@@ -339,7 +365,11 @@ function updateTechnicalApprovalRow(producto, patch = {}) {
   if (patch.aprobado && !isTechnicalApprovalComplete(nextRows[rowIndex])) {
     nextRows[rowIndex].aprobado = false;
     saveMessage.hidden = false;
-    saveMessage.textContent = `Completa dosis y días antes de aprobar ${productName}.`;
+    saveMessage.textContent = `Completa vía, dosis y días antes de aprobar ${productName}.`;
+  }
+
+  if (patch.viaAprobada && String(patch.viaAprobada).trim()) {
+    nextRows[rowIndex].viaAprobada = String(patch.viaAprobada).trim();
   }
 
   syncTechnicalApprovalRows(nextRows);
@@ -597,6 +627,7 @@ function payloadFromForm(fd) {
     edadDias: Number(fd.get("edadDias")),
     genetica: fd.get("genetica"),
     viaPreferida: fd.get("viaPreferida"),
+    consumoAlimentoRealKgDia: Number(fd.get("consumoAlimentoRealKgDia") || 0),
     desafio: fd.get("desafio"),
     areaTratadaM2: Number(fd.get("areaTratadaM2") || 0),
     costoAlimento: Number(fd.get("costoAlimento")),
@@ -614,6 +645,8 @@ async function applyMarketDefaultsToForm() {
   if (costoField) costoField.value = String(defaults.costoAlimentoCopKg);
   if (precioField) precioField.value = String(defaults.precioCerdoCopKg);
   renderPriceCatalog();
+  // Permite que sheets-patch.js aplique precios JEV encima sin race condition
+  window.dispatchEvent(new CustomEvent("bioara:benchmark-ready", { detail: defaults }));
 }
 
 async function refreshBenchmarkFromWeb() {
@@ -667,6 +700,14 @@ form.addEventListener("submit", async (ev) => {
       biosecurityAreaInput?.focus();
       return;
     }
+  }
+
+  const viaIncluyeAlimento = ["Alimento", "Agua+Alimento"].includes(String(payload.viaPreferida || "").trim());
+  if (viaIncluyeAlimento && (!Number.isFinite(payload.consumoAlimentoRealKgDia) || payload.consumoAlimentoRealKgDia <= 0)) {
+    saveMessage.hidden = false;
+    saveMessage.textContent = "Cuando la vía incluye alimento, debes indicar el consumo real diario total del lote (kg/día) para todos los animales a tratar, no por animal.";
+    form.elements.consumoAlimentoRealKgDia?.focus();
+    return;
   }
 
   const calc = calculateCase(payload, {
@@ -727,6 +768,29 @@ if (challengeSelect) {
   });
 }
 
+const viaPreferidaSelect = form.elements.viaPreferida;
+const consumoAlimentoRealField = document.getElementById("consumoAlimentoRealField");
+const consumoAlimentoRealInput = form.elements.consumoAlimentoRealKgDia;
+
+function toggleFoodConsumptionField() {
+  const selectedVia = String(viaPreferidaSelect?.value || "").trim();
+  const shouldShow = ["Alimento", "Agua+Alimento"].includes(selectedVia);
+  if (consumoAlimentoRealField) {
+    consumoAlimentoRealField.hidden = !shouldShow;
+  }
+  if (consumoAlimentoRealInput) {
+    consumoAlimentoRealInput.required = shouldShow;
+    if (!shouldShow) {
+      consumoAlimentoRealInput.value = "";
+    }
+  }
+}
+
+if (viaPreferidaSelect) {
+  viaPreferidaSelect.addEventListener("change", toggleFoodConsumptionField);
+  toggleFoodConsumptionField();
+}
+
 if (priorityProductList) {
   priorityProductList.addEventListener("change", (ev) => {
     const input = ev.target;
@@ -749,7 +813,8 @@ if (priorityProductList) {
 if (resultBox) {
   resultBox.addEventListener("change", (ev) => {
     const input = ev.target;
-    if (!(input instanceof HTMLInputElement)) return;
+    const isFieldInput = input instanceof HTMLInputElement || input instanceof HTMLSelectElement;
+    if (!isFieldInput) return;
     const product = String(input.dataset.techApprovalProduct || "").trim();
     const field = String(input.dataset.techApprovalField || "").trim();
     if (!product || !field || !currentCaseData) return;
@@ -757,20 +822,45 @@ if (resultBox) {
     const row = technicalApprovalRows.find((item) => String(item.producto || "").trim() === product);
     if (!row) return;
 
+    const rowElement = input.closest("tr");
+    const domVia = rowElement?.querySelector('[data-tech-approval-field="via"]')?.value ?? row.viaAprobada ?? "";
+    const domDose = rowElement?.querySelector('[data-tech-approval-field="dose"]')?.value ?? row.dosisAprobada ?? "";
+    const domDays = rowElement?.querySelector('[data-tech-approval-field="days"]')?.value ?? row.diasAprobados ?? "";
+
     if (field === "approved") {
-      updateTechnicalApprovalRow(product, { aprobado: input.checked });
+      const nextApprovalState = {
+        aprobado: input.checked,
+        viaAprobada: String(domVia || "").trim(),
+        dosisAprobada: String(domDose || "").trim(),
+        diasAprobados: String(domDays || "").trim()
+      };
+
+      if (input.checked && !isTechnicalApprovalComplete({ ...row, ...nextApprovalState })) {
+        input.checked = false;
+        saveMessage.hidden = false;
+        saveMessage.textContent = "El veterinario debe elegir vía, dosis y días antes de aprobar esta fila.";
+        return;
+      }
+
+      updateTechnicalApprovalRow(product, nextApprovalState);
+      refreshDetailGate();
+      return;
+    }
+
+    if (field === "via") {
+      updateTechnicalApprovalRow(product, { viaAprobada: input.value, aprobado: Boolean(row.aprobado) });
       refreshDetailGate();
       return;
     }
 
     if (field === "dose") {
-      updateTechnicalApprovalRow(product, { dosisAprobada: input.value });
+      updateTechnicalApprovalRow(product, { dosisAprobada: input.value, aprobado: Boolean(row.aprobado) });
       refreshDetailGate();
       return;
     }
 
     if (field === "days") {
-      updateTechnicalApprovalRow(product, { diasAprobados: input.value });
+      updateTechnicalApprovalRow(product, { diasAprobados: input.value, aprobado: Boolean(row.aprobado) });
       refreshDetailGate();
     }
   });
@@ -804,10 +894,10 @@ function refreshDetailGate() {
 if (approveDetailBtn) {
   approveDetailBtn.addEventListener("click", () => {
     if (!currentCaseData) return;
-    const hasTechnicalValidation = technicalApprovalRows.some((row) => row.aprobado && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0);
+    const hasTechnicalValidation = technicalApprovalRows.some((row) => hasCompleteTechnicalApproval(row));
     if (!hasTechnicalValidation) {
       saveMessage.hidden = false;
-      saveMessage.textContent = "Primero aprueba al menos una fila de la grilla técnica con dosis y días válidos.";
+      saveMessage.textContent = "Primero aprueba al menos una fila con vía, dosis y días válidos.";
       return;
     }
 
@@ -1201,8 +1291,8 @@ function buildApprovedSummaryHtml() {
             <div><strong>Fase:</strong> ${escapeHtml(currentCaseData.fase || "General")}</div>
             <div><strong>Fecha del caso:</strong> ${escapeHtml(caseDateText)}</div>
             <div><strong>Fecha de generación:</strong> ${escapeHtml(reportDateText)}</div>
-            <div><strong>Correo de contacto:</strong> asistentedeventas@bioarasa.com</div>
-            <div><strong>Vía recomendada:</strong> ${escapeHtml(currentCaseData.viaPreferida || "Agua")}</div>
+            <div><strong>Correo de contacto:</strong> business@poultryia.com</div>
+            <div><strong>Vía de referencia del caso:</strong> ${escapeHtml(currentCaseData.viaPreferida || "Definir por criterio veterinario")}</div>
           </div>
 
           ${summaryCards}
@@ -1262,7 +1352,7 @@ function buildApprovedSummaryHtml() {
 
           <div class="footer">
             <div><strong>BioARA</strong> — Soluciones para salud, nutrición y productividad porcina</div>
-            <div>asistentedeventas@bioarasa.com</div>
+            <div>business@poultryia.com</div>
           </div>
         </div>
       </body>
@@ -1319,63 +1409,146 @@ async function printApprovedPdf() {
 async function sendApprovedEmail() {
   if (!currentCaseData) return;
 
-  const recipientClient = form.elements.emailCliente?.value || "cliente@ejemplo.com";
-  const recipientBioara = form.elements.emailBioara?.value || "asistentedeventas@bioarasa.com";
-  const selectedResponsibleEmail = bioaraResponsibleSelect?.value || recipientBioara;
-  const ccRecipients = Array.from(new Set([
-    selectedResponsibleEmail,
-    recipientBioara
-  ].filter((email) => Boolean(email) && /@/.test(email))));
+  const recipientClient = String(form.elements.emailCliente?.value || "").trim();
+  const officialDemoMail = "business@poultryia.com";
+  const selectedResponsibleEmail = String(bioaraResponsibleSelect?.value || officialDemoMail).trim();
+
+  saveMessage.hidden = false;
+  saveMessage.textContent = "Enviando propuesta por correo...";
+  sendEmailBtn.disabled = true;
+
+  // --- Intento 1: backend real vía API ---
+  try {
+    const backendPayload = {
+      ...currentCaseData,
+      emailCliente: recipientClient || officialDemoMail,
+      emailBioara: selectedResponsibleEmail || officialDemoMail,
+      veterinaryNotes: veterinaryNotes.value || "Sin observaciones adicionales",
+      consumoAlimentoRealKgDia: Number(currentCaseData.consumoAlimentoRealKgDia || 0),
+      inversionTotalCop: Math.round(currentCaseData.financiero?.inversionTotal || 0),
+      roiPct: Number(currentCaseData.financiero?.roi || 0)
+    };
+
+    const caseResp = await fetch("/api/porc/cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(backendPayload),
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (caseResp.ok) {
+      const caseResult = await caseResp.json();
+      const caseId = caseResult.case?.id;
+
+      if (caseId) {
+        const approvedRows = (currentCaseData.technicalApprovalRows || []).filter(
+          (row) => row.aprobado && String(row.viaAprobada || "").trim()
+        );
+        const mainApproval = approvedRows[0] || {};
+
+        await fetch(`/api/porc/cases/${caseId}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            veterinarianName: "Médico Veterinario BioARA",
+            viaAprobada: String(mainApproval.viaAprobada || currentCaseData.viaPreferida || "Agua"),
+            dosisAprobada: String(mainApproval.dosisAprobada || "Según protocolo"),
+            diasAprobados: Number(mainApproval.diasAprobados || 7),
+            observaciones: veterinaryNotes.value || "Sin observaciones adicionales"
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        const pdfResp = await fetch(`/api/porc/cases/${caseId}/render-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (pdfResp.ok) {
+          const emailResp = await fetch(`/api/porc/cases/${caseId}/send-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(10000)
+          });
+
+          if (emailResp.ok) {
+            const emailResult = await emailResp.json();
+            const isDryRun = emailResult.email?.provider === "dry_run";
+            saveMessage.textContent = isDryRun
+              ? `Correo registrado (modo demo sin SMTP activo). Caso: ${caseId}`
+              : `Correo enviado correctamente a ${recipientClient || officialDemoMail} desde business@poultryia.com. Caso: ${caseId}`;
+            sendEmailBtn.disabled = false;
+            return;
+          }
+        }
+      }
+    }
+  } catch (backendError) {
+    console.warn("Backend no disponible; usando fallback mailto.", backendError);
+  }
+
+  // --- Fallback: descarga HTML + mailto ---
+  const recipientBioara = String(form.elements.emailBioara?.value || officialDemoMail).trim();
+  const toRecipients = Array.from(new Set(
+    [recipientClient, officialDemoMail].filter((e) => Boolean(e) && /@/.test(e))
+  ));
+  const ccRecipients = Array.from(new Set(
+    [selectedResponsibleEmail, recipientBioara, officialDemoMail].filter((e) => Boolean(e) && /@/.test(e))
+  ));
 
   const caseDate = new Date(currentCaseData.caseDate || Date.now()).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
   const reportDate = new Date(currentCaseData.reportGeneratedAt || Date.now()).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
   const subject = encodeURIComponent(`Propuesta técnica BioARA AI - ${currentCaseData.cliente || "Cliente"}`);
   const pdfFileName = `propuesta_${String(currentCaseData.cliente || "cliente").toLowerCase().replace(/[^a-z0-9]+/g, "_") || "bioara"}.pdf`;
+
   const reportHtml = buildApprovedSummaryHtml();
-  const pdfDownload = new Blob([reportHtml], { type: "application/pdf" });
-  const pdfDownloadUrl = URL.createObjectURL(pdfDownload);
-  const attachmentAnchor = document.createElement("a");
-  attachmentAnchor.href = pdfDownloadUrl;
-  attachmentAnchor.download = pdfFileName;
-  document.body.appendChild(attachmentAnchor);
-  attachmentAnchor.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(pdfDownloadUrl);
-    attachmentAnchor.remove();
-  }, 1500);
+  const pdfBlob = new Blob([reportHtml], { type: "text/html" });
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const anchor = document.createElement("a");
+  anchor.href = pdfUrl;
+  anchor.download = pdfFileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  setTimeout(() => { URL.revokeObjectURL(pdfUrl); anchor.remove(); }, 1500);
 
-  const body = encodeURIComponent(`Estimado/a:\n\nAdjunto la propuesta técnica del caso de ${currentCaseData.cliente || "Cliente"} en la granja ${currentCaseData.granja || "Granja"}.\n\nFechas:\n- Fecha del caso: ${caseDate}\n- Fecha de generación del reporte: ${reportDate}\n\nLínea de servicio:\n- ${getServiceLineLabel(currentCaseData.lineaServicio || ACTIVE_SERVICE_LINE)}\n\nPrioridad 1 (selección manual + automático + protocolos):\n${(currentCaseData.unifiedPriorityOne || []).filter((item) => item.prioridad === 1).map((item) => `- ${item.producto} (${item.categoria})`).join("\n")}\n\nResumen técnico:\n- Agua lote/día: ${currentCaseData.consumo.aguaLote.toFixed(2)} L\n- Alimento lote/día: ${currentCaseData.consumo.alimLote.toFixed(2)} kg\n- Inversión total: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(currentCaseData.financiero.inversionTotal)}\n- ROI: ${currentCaseData.financiero.roi.toFixed(2)}%\n\nObservaciones del veterinario:\n${veterinaryNotes.value || "Sin observaciones adicionales."}\n\nEl PDF del caso queda descargado para adjuntarlo desde la app de correo del dispositivo.\n\nSaludos,\nEquipo BioARA AI`);
+  const body = encodeURIComponent(
+    `Estimado/a:\n\nAdjunto la propuesta técnica del caso de ${currentCaseData.cliente || "Cliente"} en la granja ${currentCaseData.granja || "Granja"}.\n` +
+    `Fecha del caso: ${caseDate}\nFecha de generación: ${reportDate}\n\n` +
+    `Prioridad 1:\n${(currentCaseData.unifiedPriorityOne || []).filter((i) => i.prioridad === 1).map((i) => `- ${i.producto} (${i.categoria})`).join("\n")}\n\n` +
+    `Inversión total: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(currentCaseData.financiero?.inversionTotal || 0)}\n` +
+    `ROI: ${Number(currentCaseData.financiero?.roi || 0).toFixed(2)}%\n\n` +
+    `Observaciones: ${veterinaryNotes.value || "Sin observaciones adicionales."}\n\nSaludos,\nEquipo BioARA AI`
+  );
 
-  const mailtoUrl = `mailto:${recipientClient}?cc=${encodeURIComponent(ccRecipients.join(","))}&subject=${subject}&body=${body}`;
-  const fallbackText = `Para: ${recipientClient}\nCC: ${ccRecipients.join(", ")}\nAsunto: ${decodeURIComponent(subject)}\n\n${decodeURIComponent(body)}`;
+  const mailtoUrl = `mailto:${toRecipients.join(",")}?cc=${encodeURIComponent(ccRecipients.join(","))}&subject=${subject}&body=${body}`;
+  const fallbackText = `Para: ${toRecipients.join(", ")}\nCC: ${ccRecipients.join(", ")}\nAsunto: ${decodeURIComponent(subject)}\n\n${decodeURIComponent(body)}`;
 
-  saveMessage.hidden = false;
-  saveMessage.textContent = "Abriendo la app de correo del dispositivo...";
+  saveMessage.textContent = "Abriendo cliente de correo del dispositivo...";
 
   try {
     const popup = window.open(mailtoUrl, "_blank", "noopener,noreferrer");
     if (popup) {
-      saveMessage.textContent = "Se abrió la app de correo del dispositivo. Si no aparece, usa la opción de copiar el contenido del mensaje.";
+      saveMessage.textContent = "Se abrió el cliente de correo. El HTML de la propuesta quedó descargado para adjuntarlo.";
       setTimeout(() => popup.close(), 1500);
+      sendEmailBtn.disabled = false;
       return;
     }
-  } catch (error) {
-    console.warn("No se pudo abrir mailto con popup.", error);
-  }
+  } catch (_) { /* ignorado */ }
 
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(fallbackText);
-      saveMessage.textContent = "No hubo cliente de correo disponible. El contenido se copió al portapapeles.";
-      alert("No hay una app de correo disponible en este dispositivo. El mensaje se copió al portapapeles para que lo envíes manualmente.");
+      saveMessage.textContent = "No hubo cliente de correo disponible. El texto fue copiado al portapapeles.";
+      alert("No hay cliente de correo disponible. El mensaje se copió al portapapeles.");
+      sendEmailBtn.disabled = false;
       return;
     }
-  } catch (error) {
-    console.warn("No se pudo copiar el correo al portapapeles.", error);
-  }
+  } catch (_) { /* ignorado */ }
 
-  saveMessage.textContent = "No hubo app de correo disponible. Copia manualmente el contenido del mensaje.";
-  alert("No hay una app de correo disponible en este dispositivo. Copia manualmente el siguiente contenido y envíalo a: " + recipientBioara + "\n\n" + fallbackText);
+  saveMessage.textContent = "No hubo cliente de correo disponible. Copia el mensaje manualmente.";
+  alert("No hay cliente de correo disponible en este dispositivo.\nCopiar a: " + recipientBioara + "\n\n" + fallbackText);
+  sendEmailBtn.disabled = false;
 }
 
 newCaseBtn.addEventListener("click", () => {

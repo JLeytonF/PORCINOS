@@ -30,7 +30,7 @@
 
   <title>Porcicultura Demo 1 — BioARA AI</title>
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="stylesheet" href="./styles.css?v=20260907r12" />
+  <link rel="stylesheet" href="./styles.css?v=20260922r1" />
 </head>
 <body>
   <header class="topbar">
@@ -103,7 +103,7 @@
             <label>Email cliente
               <input name="emailCliente" type="email" placeholder="cliente@ejemplo.com" />
             </label>
-            <input name="emailBioara" type="hidden" value="asistentedeventas@bioarasa.com" />
+            <input name="emailBioara" type="hidden" value="business@poultryia.com" />
             <div class="responsables-bioara-block">
               <span class="form-note">Tu especialista BioARA</span>
               <select id="bioaraResponsibleSelect" class="responsible-select" aria-label="Tu especialista BioARA">
@@ -141,6 +141,11 @@
                 <option value="Alimento">Alimento</option>
                 <option value="Agua+Alimento">Agua + Alimento</option>
               </select>
+            </label>
+            <label id="consumoAlimentoRealField" class="field-conditional" hidden>
+              Consumo real del lote completo (kg/día)
+              <input name="consumoAlimentoRealKgDia" type="number" min="0.1" step="0.1" placeholder="Ej. 420 (total del lote)" />
+              <span class="helper">Total del lote a tratar, no por animal. Se usa para ajustar la dosis con el consumo real del grupo.</span>
             </label>
             <div class="challenge-area-row">
               <label>Desafío principal
@@ -247,11 +252,11 @@
   </main>
 
   <footer class="footer">
-    <small>BioARA AI · Porcicultura Demo 1 · Evaluación temporal · <a href="mailto:gerencia@bioarasa.com">Contacto</a></small>
+    <small>BioARA AI · Porcicultura Demo 1 · Evaluación temporal · <a href="mailto:business@poultryia.com">Contacto</a></small>
   </footer>
 
   <!-- Lógica principal (demo_bioara_v1 sin modificar) -->
-  <script type="module" src="./app/main.js?v=20260907r25"></script>
+  <script type="module" src="./app/main.js?v=20260922r1"></script>
 
   <!-- Enriquecimiento Google Sheets (solo Demo 1) -->
   <script type="module" src="./app/sheets-patch.js"></script>

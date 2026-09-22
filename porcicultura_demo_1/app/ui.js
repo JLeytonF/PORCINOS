@@ -19,6 +19,7 @@ export function renderResult(container, data) {
     veterinaryApprovalConfirmed,
     fmt
   } = data;
+  const recommendedVia = String(data.viaPreferida || "Agua").trim() || "Agua";
   const rows = protocolos.map((p) => `
     <tr>
       <td>${p.producto}</td>
@@ -35,7 +36,12 @@ export function renderResult(container, data) {
   const recommendationItems = recomendaciones.map((item) => `<li>${item}</li>`).join("");
 
   const prioritySource = (unifiedPriorityOne || bioAraRecommendations || []);
-  const technicalApprovalComplete = technicalApprovalRows.filter((row) => row.aprobado && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0);
+  const technicalApprovalComplete = technicalApprovalRows.filter((row) =>
+    row.aprobado &&
+    String(row.viaAprobada || "").trim() &&
+    String(row.dosisAprobada || "").trim() &&
+    Number(row.diasAprobados) > 0
+  );
   const approvalReady = technicalApprovalComplete.length > 0 && Boolean(veterinaryApprovalConfirmed);
   const finalPrioritySource = approvalReady && approvedPriorityOne.length ? approvedPriorityOne : prioritySource.filter((item) => item.prioridad === 1);
   const finalProtocols = approvalReady && approvedProtocols.length ? approvedProtocols : protocolos;
@@ -43,15 +49,23 @@ export function renderResult(container, data) {
 
   const priority1Items = finalPrioritySource.map((item) => `
     <li>
-      <strong>${item.producto}</strong> (${item.categoria})<br>
-      <small>${item.razon}</small>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px;">
+        <strong style="font-size:15px; line-height:1.3;">${item.producto}</strong>
+        <span style="display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; background:#eaf7f1; color:#0a5d49; font-size:11px; font-weight:700; letter-spacing:0.02em;">Vía de referencia: ${escapeHtml(recommendedVia || "Definir")}</span>
+      </div>
+      <div style="font-size:12px; color:#3d5d59; margin-bottom:4px;">${item.categoria}</div>
+      <small style="display:block; line-height:1.45; color:#2e3e3a;">${item.razon}</small>
     </li>
   `).join("");
 
   const supportItems = prioritySource.filter((item) => item.prioridad === 2).map((item) => `
     <li>
-      <strong>${item.producto}</strong> (${item.categoria})<br>
-      <small>${item.razon}</small>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px;">
+        <strong style="font-size:14px; line-height:1.3;">${item.producto}</strong>
+        <span style="display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; background:#eef4ff; color:#2457a6; font-size:11px; font-weight:700; letter-spacing:0.02em;">Vía de referencia: ${escapeHtml(recommendedVia || "Definir")}</span>
+      </div>
+      <div style="font-size:12px; color:#3d5d59; margin-bottom:4px;">${item.categoria}</div>
+      <small style="display:block; line-height:1.45; color:#2e3e3a;">${item.razon}</small>
     </li>
   `).join("");
 
@@ -105,17 +119,29 @@ export function renderResult(container, data) {
   }
 
   const technicalApprovalTableRows = technicalApprovalRows.map((row) => {
-    const rowReady = row.aprobado && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0;
+    const selectedVia = String(row.viaAprobada || "").trim();
+    const rowReady = row.aprobado && selectedVia && String(row.dosisAprobada || "").trim() && Number(row.diasAprobados) > 0;
+    const routeHint = row.tieneReferencia ? "La vía se puede ajustar por producto; la referencia del caso ya viene cargada." : "La vía se puede ajustar por producto.";
     return `
       <tr class="${rowReady ? "is-approved" : row.aprobado ? "is-partial" : "is-pending"}">
         <td class="approval-checkbox-cell">
           <input type="checkbox" data-tech-approval-product="${escapeHtml(row.producto)}" data-tech-approval-field="approved" ${row.aprobado ? "checked" : ""} aria-label="Aprobar ${escapeHtml(row.producto)}" />
         </td>
         <td>
-          <strong>${row.producto}</strong>
-          <div class="approval-cell-note">${row.razon || "Revisión clínica prioritaria"}</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+              <strong style="font-size:14px; line-height:1.35;">${row.producto}</strong>
+            </div>
+            <div class="approval-cell-note" style="line-height:1.45; color:#35504c; font-size:12px;">${row.razon || "Revisión clínica prioritaria"}</div>
+            <div class="approval-reference" style="font-weight:700;">${routeHint}</div>
+          </div>
         </td>
         <td>
+          <select class="approval-input approval-via-select" data-tech-approval-product="${escapeHtml(row.producto)}" data-tech-approval-field="via" aria-label="Elegir vía para ${escapeHtml(row.producto)}" required>
+            <option value="" ${selectedVia ? "" : "selected"}>Seleccionar</option>
+            <option value="Agua" ${selectedVia === "Agua" ? "selected" : ""}>Agua</option>
+            <option value="Alimento" ${selectedVia === "Alimento" ? "selected" : ""}>Alimento</option>
+          </select>
           <div class="approval-reference">${row.tieneReferencia ? `${row.dosisSugerida} · ${row.diasSugeridos || "ND"} días` : row.sugerido}</div>
           <input type="text" class="approval-input" data-tech-approval-product="${escapeHtml(row.producto)}" data-tech-approval-field="dose" value="${escapeHtml(row.dosisAprobada || "")}" placeholder="Dosis aprobada" />
         </td>

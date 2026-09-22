@@ -22,11 +22,10 @@ fecha_actualizacion,producto,categoria,presentacion,unidad_presentacion,precio_u
 2026-08-11,Deltaforce 2,5% EC,Insecticida,Frasco x 1 L,L,504900,504900,Insecticida para control de insectos y vectores
 2026-08-11,ANALOGUE EC 10%,Insecticida,Frasco x 1 L,L,298000,298000,Insecticida de contacto para control de insectos
 2026-08-11,Diclorvos EC 50%,Insecticida,Frasco x 1 L,L,313000,313000,Insecticida para control de insectos
-2026-09-07,EUBIOL,Probiotico_con_electrolitos,Bolsa x 1 kg y 10 kg,kg,86000,86000,Ficha tecnica: presentacion bolsa 1 kg y 10 kg; lista de precios 2026 confirma 1K a 86.000 COP
-2026-09-07,BACTERINA HS F,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,BACTERINA PLEUROSUIS,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,BACTERINA MYCOSUIS HP,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,BACTERINA TOXOIDE E. COLI,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,E. COLI ORAL,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,CEPA F,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
-2026-09-07,ADITIVO PRRSv,Biologico_Con_Ficha,Según ficha técnica,und,0,0,Ficha técnica validada; precio comercial: Cotizar
+2026-09-07,EUBIOL,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - ficha tecnica encontrada sin precio validado
+2026-09-07,BACTERINA HS F,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - ficha tecnica encontrada sin validacion completa
+2026-09-07,BACTERINA PLEUROSUIS,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - ficha tecnica encontrada sin precio validado
+2026-09-07,BACTERINA MYCOSUIS HP,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - ficha tecnica encontrada sin precio validado
+2026-09-07,E. COLI ORAL,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - indicacion y esquema final por validar
+2026-09-07,CEPA F,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - categoria funcional por confirmar
+2026-09-07,PRRSv,Biologico_Pendiente,pendiente por confirmar,und,0,0,pendiente por confirmar - esquema comercial por confirmar

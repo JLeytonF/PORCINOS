@@ -123,6 +123,17 @@ function formatRange(minValue, maxValue, unit, digits = 3) {
   return `${formatNumber(minNumber, digits)} - ${formatNumber(maxNumber, digits)} ${unit}`.trim();
 }
 
+function resolveFeedConsumptionForDose(payload) {
+  const preferredVia = String(payload.viaPreferida || "").trim();
+  const actualDailyFeed = Number(payload.consumoAlimentoRealKgDia || 0);
+
+  if (["Alimento", "Agua+Alimento"].includes(preferredVia) && Number.isFinite(actualDailyFeed) && actualDailyFeed > 0) {
+    return actualDailyFeed;
+  }
+
+  return null;
+}
+
 function calculateProtocolDose(item, animalCount, pesoPromedio, aguaLote, alimLote, areaTratadaM2, challenge = "") {
   const doseMode = item.doseMode || "per_1000L";
   const days = Number(item.duracionDias || 0);
@@ -318,6 +329,17 @@ function buildProtocolSteps(payload, aguaLote, areaTratadaM2) {
   return steps;
 }
 
+const PENDING_AUTO_RECOMMENDATION_PRODUCTS = new Set([
+  "EUBIOL",
+  "BACTERINA HS F",
+  "BACTERINA PLEUROSUIS",
+  "BACTERINA MYCOSUIS HP",
+  "BACTERINA TOXOIDE E. COLI",
+  "E. COLI ORAL",
+  "CEPA F",
+  "ADITIVO PRRSv"
+]);
+
 function buildBioAraRecommendations(payload) {
   const via = payload.viaPreferida || "Agua";
   const challenge = normalizeChallenge(payload.desafio || "Bioseguridad");
@@ -384,10 +406,12 @@ function buildBioAraRecommendations(payload) {
     ]
   };
 
-  const candidates = [...(byChallenge[challenge] || [])].map((item) => ({
-    ...item,
-    prioridad: item.prioridad || 2
-  }));
+  const candidates = [...(byChallenge[challenge] || [])]
+    .filter((item) => !PENDING_AUTO_RECOMMENDATION_PRODUCTS.has(String(item.producto || "").trim().toUpperCase()))
+    .map((item) => ({
+      ...item,
+      prioridad: item.prioridad || 2
+    }));
 
   if (challenge === "Bioseguridad") {
     return candidates.filter((item) => {
@@ -904,8 +928,13 @@ export function calculateCase(payload, options = {}) {
   const aguaCerdo = peso * waterFactorByStage(payload.fase);
   const aguaLote = aguaCerdo * n;
 
-  const alimCerdo = peso * feedFactorByStage(payload.fase);
-  const alimLote = alimCerdo * n;
+  const realFeedLoteKgDia = resolveFeedConsumptionForDose(payload);
+  const alimCerdo = realFeedLoteKgDia !== null && n > 0
+    ? realFeedLoteKgDia / n
+    : peso * feedFactorByStage(payload.fase);
+  const alimLote = realFeedLoteKgDia !== null
+    ? realFeedLoteKgDia
+    : alimCerdo * n;
 
   const challengeProtocol = selectChallengeProtocol(payload);
 

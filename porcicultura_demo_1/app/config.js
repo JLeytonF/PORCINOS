@@ -304,6 +304,86 @@ const FALLBACK_PRICE_CATALOG = [
     precioUnitarioCop: 313000,
     costoReferenciaCop: 313000,
     observaciones: "Insecticida para control de insectos; frasco x 1 L - 313.000 COP"
+  },
+  {
+    producto: "EUBIOL",
+    categoria: "Biologico",
+    presentacion: "Bolsa x 1 kg y 10 kg",
+    unidadPresentacion: "kg",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "BACTERINA HS F",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "BACTERINA PLEUROSUIS",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "BACTERINA MYCOSUIS HP",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "BACTERINA TOXOIDE E. COLI",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "E. COLI ORAL",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "CEPA F",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
+  },
+  {
+    producto: "ADITIVO PRRSv",
+    categoria: "Biologico",
+    presentacion: "Según ficha técnica",
+    unidadPresentacion: "und",
+    precioUnitarioCop: 0,
+    costoReferenciaCop: 0,
+    observaciones: "Ficha técnica validada; precio comercial: Cotizar",
+    estado: "activo"
   }
 ];
 

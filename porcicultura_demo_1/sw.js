@@ -1,4 +1,4 @@
-const CACHE_NAME = "bioara-v1-cache-20260907-r15";
+const CACHE_NAME = "bioara-v1-cache-20260909-r1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -33,13 +33,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then((response) => {
         const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+        if (response && response.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return response;
       })
       .catch(() => caches.match(event.request))

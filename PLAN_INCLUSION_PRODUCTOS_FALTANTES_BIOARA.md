@@ -11,9 +11,11 @@ Alcance:
 - Etiquetado estricto de datos incompletos.
 
 Restricciones:
-- Si falta evidencia tecnica o comercial: usar exactamente "pendiente por confirmar".
-- Si no hay precio verificable: usar "Cotizar".
-- No habilitar recomendacion automatica para productos incompletos.
+- La ficha tecnica es la fuente primaria de evidencia del producto y NO debe ser ignorada.
+- Si falta la ficha tecnica o la evidencia comercial: usar exactamente "pendiente por confirmar".
+- Si existe ficha tecnica pero aun no hay precio comercial validado: mantener el producto visible como activo con precio "Cotizar" y excluirlo del motor automatico.
+- No habilitar recomendacion automatica para productos sin evidencia de uso o precio validado.
+- La categoría base "Biológico" es suficiente; no hace falta reforzarla con "con ficha técnica" en cada etiqueta.
 
 Criterio de aceptacion:
 - Matriz de inclusion actualizada.
@@ -114,16 +116,18 @@ Salida:
 
 ## 5) Estado objetivo por producto
 
-| Producto | Estado inicial | Criterio para subir a activo |
+> Correccion: los productos que tienen ficha tecnica en la carpeta de Fichas tecnicas cuentan con evidencia tecnica valida. Su estado operativo no debe ser "pendiente por confirmar" por el solo hecho de no tener precio comercial cerrado; deben aparecer como activos con precio "Cotizar" y permanecer fuera del motor automatico hasta validarse uso o precio.
+
+| Producto | Estado correcto | Regla de negocio |
 |---|---|---|
-| EUBIOL | pendiente por confirmar | Confirmar indicacion, presentacion y precio/cotizar |
-| BACTERINA HS F | pendiente por confirmar | Confirmar especie objetivo, dosis y via |
-| BACTERINA PLEUROSUIS | pendiente por confirmar | Confirmar esquema de uso y presentacion |
-| BACTERINA MYCOSUIS HP | pendiente por confirmar | Confirmar esquema de uso y presentacion |
-| BACTERINA TOXOIDE E. COLI | pendiente por confirmar | Confirmar si es producto independiente o variante |
-| E. COLI ORAL | pendiente por confirmar | Confirmar relacion con bacterina/toxoide y uso final |
-| CEPA F | pendiente por confirmar | Confirmar categoria funcional y aplicacion |
-| ADITIVO PRRSv | pendiente por confirmar | Confirmar que es producto comercial activo |
+| EUBIOL | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| BACTERINA HS F | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| BACTERINA PLEUROSUIS | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| BACTERINA MYCOSUIS HP | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| BACTERINA TOXOIDE E. COLI | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| E. COLI ORAL | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| CEPA F | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
+| ADITIVO PRRSv | activo (precio Cotizar) | Biológico; visible en catalogo, no auto-recomendado |
 
 ---
 
