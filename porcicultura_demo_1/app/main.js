@@ -40,9 +40,20 @@ let technicalApprovalRows = [];
 let veterinaryApprovalConfirmed = false;
 
 const FALLBACK_BIOARA_RESPONSIBLES = [
-  { nombre: "Equipo PoultryIA", email: "business@poultryia.com" },
-  { nombre: "Soporte PoultryIA", email: "business@poultryia.com" },
-  { nombre: "Atención comercial PoultryIA", email: "business@poultryia.com" }
+  { nombre: "Dr. Alejandro Rodriguez", email: "gerencia@bioarasa.com" },
+  { nombre: "Dra. Juliana Florez", email: "asistentedeventas@bioarasa.com" },
+  { nombre: "Dra. Andrea Cadavid", email: "medellinavicultura@bioarasa.com" },
+  { nombre: "Dra. Lina Santa", email: "bucaramanga@bioarasa.com" },
+  { nombre: "Dra. Amanda Rodriguez", email: "dvacuicultura@bioarasa.com" },
+  { nombre: "Dr. Jorge Moreno", email: "gerenciadeventas@bioarasa.com" },
+  { nombre: "Dr. Jesus Diaz", email: "costabioara@bioarasa.com" },
+  { nombre: "Dr. Luis Cardona", email: "gerenciamedellin@bioarasa.com" },
+  { nombre: "Dra. Marianela Munera", email: "distribuidoresmedellin@bioarasa.com" },
+  { nombre: "Dr. Juan Pablo Baron", email: "ponedoras@bioarasa.com" },
+  { nombre: "Dra. Olga Sanchez", email: "porcivalle@bioarasa.com" },
+  { nombre: "Dr. Daniel Velasquez", email: "medellinporcicultura@bioarasa.com" },
+  { nombre: "Dr. Ciro Carvajal", email: "valle@bioarasa.com" },
+  { nombre: "Dr. Claudio Garcia", email: "zonacentro@bioarasa.com" }
 ];
 
 const OFFICIAL_BIOARA_NAMES_BY_EMAIL = Object.fromEntries(
@@ -496,7 +507,7 @@ function normalizeSpanishText(raw = "") {
 }
 
 async function loadBioaraResponsibleList() {
-  const csvUrl = "../LISTA%20DE%20PRECIOS/lista_correos_zonas.csv";
+  const csvUrl = "./data/lista_correos_zonas.csv";
 
   try {
     const response = await fetch(csvUrl, { cache: "no-store" });
