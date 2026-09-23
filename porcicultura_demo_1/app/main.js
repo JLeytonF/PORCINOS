@@ -69,6 +69,12 @@ const SERVICE_LINE_LABELS = {
   laboratorio: "Laboratorio"
 };
 
+const FICHA_TECNICA_DEFAULTS = {
+  "Bio-Protector": { via: "Agua", dosis: "4 kg/1000L", dias: "3", sugerido: "ADITIVO BIOPROTECTOR: 1 kg en 250 L de agua" },
+  "BIOASIS": { via: "Alimento", dosis: "1 kg/ton", dias: "14", sugerido: "BIOASIS: 1 kg por tonelada de alimento" },
+  "Triple AAA": { via: "Alimento", dosis: "1 kg/ton", dias: "7", sugerido: "TRIPLE AAA AVES Y CERDOS: soporte nutricional complementario" }
+};
+
 let deferredPrompt = null;
 
 function updateNetworkBadge() {
@@ -222,10 +228,11 @@ function buildTechnicalApprovalRows(caseData = {}) {
     .map((item) => {
       const protocol = protocolMap.get(String(item.producto || "").trim()) || null;
       const saved = savedRows.get(String(item.producto || "").trim()) || {};
+      const ficha = FICHA_TECNICA_DEFAULTS[String(item.producto || "").trim()] || null;
 
-      const suggestedVia = String(caseData.viaPreferida || "Agua").trim() || "Agua";
-      const suggestedDose = protocol?.cantidadDiaTexto || protocol?.doseUnit || "Según ficha técnica";
-      const suggestedDays = protocol?.duracionDias ? String(protocol.duracionDias) : "";
+      const suggestedVia = String(protocol?.ruta || ficha?.via || caseData.viaPreferida || "Agua").trim() || "Agua";
+      const suggestedDose = protocol?.cantidadDiaTexto || ficha?.dosis || "Dosis manual veterinaria";
+      const suggestedDays = protocol?.duracionDias ? String(protocol.duracionDias) : (ficha?.dias || "");
       const approvedVia = String(saved.viaAprobada || suggestedVia || "Agua").trim() || "Agua";
       const approvedDose = saved.doseText ?? saved.dosisAprobada ?? suggestedDose;
       const approvedDays = saved.daysText ?? saved.diasAprobados ?? suggestedDays;
@@ -235,7 +242,7 @@ function buildTechnicalApprovalRows(caseData = {}) {
         categoria: item.categoria,
         razon: item.razon,
         fuente: Array.isArray(item.fuentes) ? item.fuentes.join(" + ") : "",
-        sugerido: protocol ? "Sí" : "Completar según ficha técnica",
+        sugerido: protocol ? "Sí" : (ficha?.sugerido || "Dosis manual veterinaria requerida"),
         viaAprobada: approvedVia,
         dosisSugerida: suggestedDose,
         diasSugeridos: suggestedDays,
@@ -299,7 +306,7 @@ function rebuildApprovedCaseView() {
   const originalProtocols = Array.isArray(currentCaseData.protocolos) ? currentCaseData.protocolos : [];
   const originalPriorityOne = Array.isArray(currentCaseData.unifiedPriorityOne) ? currentCaseData.unifiedPriorityOne : [];
   const originalPriorityMatrix = Array.isArray(currentCaseData.priorityOneMatrix) ? currentCaseData.priorityOneMatrix : [];
-  const approvedProtocols = approvalActive
+  let approvedProtocols = approvalActive
     ? originalProtocols.filter((protocol) => approvedNames.has(String(protocol.producto || "").trim())).map((protocol) => {
         const row = approvedRows.find((item) => String(item.producto || "").trim() === String(protocol.producto || "").trim());
         if (!row) return protocol;
@@ -307,20 +314,41 @@ function rebuildApprovedCaseView() {
         const approvedDoseValue = Number.parseFloat(String(row.dosisAprobada || "0").replace(/[^0-9,.-]/g, "").replace(",", ".")) || Number(protocol.cantidadDia || 0);
         const approvedDays = Number(row.diasAprobados || protocol.duracionDias || 1);
         const route = String(row.viaAprobada || protocol.ruta || "").trim();
+        const approvedTotal = parseFloat((approvedDoseValue * approvedDays).toFixed(3));
 
         return {
           ...protocol,
           ruta: route,
           duracionDias: approvedDays,
-          cantidadDia: approvedDoseValue,
+          cantidadDia: parseFloat(approvedDoseValue.toFixed(3)),
           cantidadDiaTexto: String(row.dosisAprobada || protocol.cantidadDiaTexto || ""),
-          totalKg: approvedDoseValue * approvedDays,
-          cantidadTotalTexto: `${approvedDoseValue * approvedDays} ${protocol.unidadDia || ""}`.trim(),
+          totalKg: approvedTotal,
+          cantidadTotalTexto: `${approvedTotal} ${protocol.unidadDia || ""}`.trim(),
           costo: Math.max(Number(protocol.costo || 0) * (approvedDoseValue / Math.max(Number(protocol.cantidadDia || approvedDoseValue || 1), 1)) * (approvedDays / Math.max(Number(protocol.duracionDias || approvedDays || 1), 1)), 0),
           costoTexto: "Cotizar"
         };
       })
     : originalProtocols;
+
+  if (approvalActive) {
+    const protocolNames = new Set(approvedProtocols.map((protocol) => String(protocol.producto || "").trim()));
+    approvedRows.forEach((row) => {
+      const productName = String(row.producto || "").trim();
+      if (!productName || protocolNames.has(productName)) return;
+      approvedProtocols.push({
+        producto: productName,
+        ruta: String(row.viaAprobada || "Manual").trim(),
+        doseUnit: "Dosis MVZ",
+        dosisUnidad: "Dosis MVZ",
+        cantidadDiaTexto: String(row.dosisAprobada || "Dosis manual veterinaria"),
+        duracionDias: Number(row.diasAprobados || 1),
+        cantidadTotalTexto: "Validar con criterio MVZ",
+        costoTexto: "Cotizar",
+        costo: 0,
+        unidadDia: ""
+      });
+    });
+  }
 
   const approvedPriorityOne = approvalActive
     ? originalPriorityOne.filter((item) => approvedNames.has(String(item.producto || "").trim()))
@@ -822,6 +850,18 @@ if (priorityProductList) {
 }
 
 if (resultBox) {
+  resultBox.addEventListener("click", (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest("input, select, textarea, button, a")) return;
+    const row = target.closest("tr");
+    const checkbox = row?.querySelector('[data-tech-approval-field="approved"]');
+    if (checkbox instanceof HTMLInputElement) {
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
   resultBox.addEventListener("change", (ev) => {
     const input = ev.target;
     const isFieldInput = input instanceof HTMLInputElement || input instanceof HTMLSelectElement;
@@ -1489,6 +1529,9 @@ async function sendApprovedEmail() {
             saveMessage.textContent = isDryRun
               ? `Correo registrado (modo demo sin SMTP activo). Caso: ${caseId}`
               : `Correo enviado correctamente a ${recipientClient || officialDemoMail} desde business@poultryia.com. Caso: ${caseId}`;
+            alert(isDryRun
+              ? `Correo registrado en modo demo. Caso: ${caseId}`
+              : `Correo enviado correctamente a ${recipientClient || officialDemoMail}. Caso: ${caseId}`);
             sendEmailBtn.disabled = false;
             return;
           }

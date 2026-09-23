@@ -489,9 +489,22 @@ button:hover { filter: brightness(1.05); }
 }
 
 .approval-checkbox-cell input {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
+  cursor: pointer;
+  accent-color: #00684f;
+}
+
+.technical-approval-table tbody tr {
+  cursor: pointer;
+}
+
+.technical-approval-table .approval-input,
+.technical-approval-table input,
+.technical-approval-table select,
+.technical-approval-table button {
+  cursor: auto;
 }
 
 .approval-cell-note,
@@ -711,7 +724,8 @@ button:hover { filter: brightness(1.05); }
 
 .priority-product-item input {
   margin-top: 2px;
-  transform: scale(1.05);
+  transform: scale(1.35);
+  accent-color: #00684f;
 }
 
 .priority-product-item strong {

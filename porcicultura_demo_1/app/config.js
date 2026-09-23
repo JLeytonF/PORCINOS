@@ -482,6 +482,26 @@ export const PROTOCOL_LIBRARY = {
       doseUnit: "ml/kg pv",
       duracionDias: 14,
       notes: "Cerdos adultos: 1 ml por cada 10 kg de peso vivo; lechones: 0.5 ml al nacimiento y 1 ml al destete"
+    },
+    {
+      producto: "Bio-Protector",
+      ruta: "agua",
+      doseMode: "per_1000L",
+      doseMin: 4,
+      doseMax: 4,
+      doseUnit: "kg/1000L",
+      duracionDias: 3,
+      notes: "Ficha ADITIVO BIOPROTECTOR: disolver 1 kg en 250 L de agua"
+    },
+    {
+      producto: "BIOASIS",
+      ruta: "alimento",
+      doseMode: "per_ton",
+      doseMin: 1,
+      doseMax: 1,
+      doseUnit: "kg/ton",
+      duracionDias: 14,
+      notes: "Ficha BIOASIS: simbiótico de apoyo para consolidar microbiota"
     }
   ],
   Respiratorio: [

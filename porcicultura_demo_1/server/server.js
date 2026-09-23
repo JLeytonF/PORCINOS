@@ -119,6 +119,32 @@ function buildPdf(caseId, payload) {
     doc.text(`ROI estimado: ${Number(payload.roiPct || 0).toFixed(2)}%`);
     doc.text(`Correo contacto: business@poultryia.com`);
 
+    const protocolos = Array.isArray(payload.approvedProtocols) && payload.approvedProtocols.length
+      ? payload.approvedProtocols
+      : Array.isArray(payload.protocolos) ? payload.protocolos : [];
+
+    if (protocolos.length) {
+      doc.moveDown();
+      doc.fontSize(14).text('Protocolo recomendado aprobado');
+      doc.moveDown(0.4);
+      protocolos.forEach((item, index) => {
+        const nombre = item.producto || `Producto ${index + 1}`;
+        const ruta = item.ruta || item.viaAprobada || 'Definir';
+        const dosis = item.cantidadDiaTexto || item.dosisAprobada || item.doseUnit || item.dosisUnidad || 'Dosis MVZ';
+        const dias = item.duracionDias || item.diasAprobados || 'ND';
+        const total = item.cantidadTotalTexto || item.totalTexto || 'Validar con criterio MVZ';
+        const costo = item.costoTexto || prettyCurrency(item.costo || 0);
+        doc.fontSize(10).text(`${index + 1}. ${nombre}`);
+        doc.fontSize(9).text(`   Ruta: ${ruta} | Dosis: ${dosis} | Dias: ${dias} | Total: ${total} | Inversion: ${costo}`);
+      });
+    }
+
+    if (payload.veterinaryNotes) {
+      doc.moveDown();
+      doc.fontSize(12).text('Observaciones del veterinario');
+      doc.fontSize(10).text(String(payload.veterinaryNotes), { width: 500 });
+    }
+
     doc.end();
 
     writeStream.on('finish', () => resolve({ fileName, absolutePath: pdfPath }));
