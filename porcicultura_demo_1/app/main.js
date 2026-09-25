@@ -39,6 +39,42 @@ let bioaraResponsibleRoster = [];
 let technicalApprovalRows = [];
 let veterinaryApprovalConfirmed = false;
 
+const APPROVAL_ROUTE_VALUES = new Set([
+  "Agua",
+  "Alimento",
+  "Agua+Alimento",
+  "Oral",
+  "Inyectable IM",
+  "Inyectable SC",
+  "Aspersión",
+  "Vía veterinaria"
+]);
+
+function normalizeApprovalRoute(rawRoute, fallback = "Agua") {
+  const fallbackRoute = APPROVAL_ROUTE_VALUES.has(String(fallback || "").trim()) ? String(fallback).trim() : "Agua";
+  const route = String(rawRoute || "").trim();
+  if (!route) return fallbackRoute;
+  if (APPROVAL_ROUTE_VALUES.has(route)) return route;
+
+  const normalized = route
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (normalized.includes("agua") && normalized.includes("alimento")) return "Agua+Alimento";
+  if (normalized === "oral") return "Oral";
+  if (normalized.includes("inyectable") && normalized.includes("im")) return "Inyectable IM";
+  if (normalized.includes("inyectable") && normalized.includes("sc")) return "Inyectable SC";
+  if (normalized.includes("aspersion")) return "Aspersión";
+  if (normalized.includes("veterinaria")) return "Vía veterinaria";
+  if (normalized.includes("agua")) return "Agua";
+  if (normalized.includes("alimento")) return "Alimento";
+
+  return fallbackRoute;
+}
+
 const FALLBACK_BIOARA_RESPONSIBLES = [
   { nombre: "Dr. Alejandro Rodriguez", email: "gerencia@bioarasa.com" },
   { nombre: "Dra. Juliana Florez", email: "asistentedeventas@bioarasa.com" },
@@ -62,6 +98,8 @@ const OFFICIAL_BIOARA_NAMES_BY_EMAIL = Object.fromEntries(
 
 const ACTIVE_SERVICE_LINE = "porcicultura";
 const SERVICE_STORAGE_KEY = "bioara.service.line";
+const CASE_DRAFT_STORAGE_KEY = "bioara.demo1.caseDraft.v1";
+const CASE_DRAFT_RESTORE_FLAG_KEY = "bioara.demo1.caseDraft.restoreOnce.v1";
 const SERVICE_LINE_LABELS = {
   avicultura: "Avicultura",
   acuicultura: "Acuicultura",
@@ -72,7 +110,14 @@ const SERVICE_LINE_LABELS = {
 const FICHA_TECNICA_DEFAULTS = {
   "Bio-Protector": { via: "Agua", dosis: "4 kg/1000L", dias: "3", sugerido: "ADITIVO BIOPROTECTOR: 1 kg en 250 L de agua" },
   "BIOASIS": { via: "Alimento", dosis: "1 kg/ton", dias: "14", sugerido: "BIOASIS: 1 kg por tonelada de alimento" },
-  "Triple AAA": { via: "Alimento", dosis: "1 kg/ton", dias: "7", sugerido: "TRIPLE AAA AVES Y CERDOS: soporte nutricional complementario" }
+  "Triple AAA": { via: "Alimento", dosis: "1 kg/ton", dias: "7", sugerido: "TRIPLE AAA AVES Y CERDOS: soporte nutricional complementario" },
+  "BACTERINA HS F": { via: "Inyectable IM", dosis: "Dosis según protocolo veterinario", dias: "1", sugerido: "Vacunación según protocolo autorizado por el médico veterinario" },
+  "BACTERINA PLEUROSUIS": { via: "Inyectable IM", dosis: "Dosis según protocolo veterinario", dias: "1", sugerido: "Vacunación según protocolo autorizado por el médico veterinario" },
+  "BACTERINA MYCOSUIS HP": { via: "Inyectable IM", dosis: "Dosis según protocolo veterinario", dias: "1", sugerido: "Vacunación según protocolo autorizado por el médico veterinario" },
+  "BACTERINA TOXOIDE E. COLI": { via: "Inyectable IM", dosis: "Dosis según protocolo veterinario", dias: "1", sugerido: "Vacunación según protocolo autorizado por el médico veterinario" },
+  "E. COLI ORAL": { via: "Oral", dosis: "Dosis según protocolo veterinario", dias: "3", sugerido: "Administración oral según protocolo autorizado por el médico veterinario" },
+  "CEPA F": { via: "Oral", dosis: "Dosis según protocolo veterinario", dias: "3", sugerido: "Administración oral según protocolo autorizado por el médico veterinario" },
+  "ADITIVO PRRSv": { via: "Agua", dosis: "Dosis según protocolo veterinario", dias: "5", sugerido: "Aditivo en agua según protocolo del médico veterinario" }
 };
 
 let deferredPrompt = null;
@@ -82,6 +127,183 @@ function updateNetworkBadge() {
   networkBadge.textContent = online ? "Con red" : "Sin red";
   networkBadge.classList.toggle("online", online);
   networkBadge.classList.toggle("offline", !online);
+}
+
+function clearCurrentCaseDraft() {
+  try {
+    sessionStorage.removeItem(CASE_DRAFT_STORAGE_KEY);
+    sessionStorage.removeItem(CASE_DRAFT_RESTORE_FLAG_KEY);
+  } catch (_) {
+    // Ignorado en modo demo si sessionStorage no está disponible.
+  }
+}
+
+function armDraftRestoreOnce(reason = "manual") {
+  try {
+    const payload = {
+      reason,
+      expiresAt: Date.now() + (10 * 60 * 1000)
+    };
+    sessionStorage.setItem(CASE_DRAFT_RESTORE_FLAG_KEY, JSON.stringify(payload));
+  } catch (_) {
+    // Ignorado.
+  }
+}
+
+function consumeDraftRestoreFlag() {
+  try {
+    const raw = sessionStorage.getItem(CASE_DRAFT_RESTORE_FLAG_KEY);
+    sessionStorage.removeItem(CASE_DRAFT_RESTORE_FLAG_KEY);
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw);
+    const expiresAt = Number(parsed?.expiresAt || 0);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function captureFormSnapshot() {
+  const snapshot = {};
+  try {
+    const fd = new FormData(form);
+    fd.forEach((value, key) => {
+      snapshot[key] = String(value ?? "");
+    });
+  } catch (_) {
+    // Ignorado.
+  }
+
+  snapshot.selectedManualProducts = Array.from(selectedManualProducts || []);
+  snapshot.bioaraResponsibleEmail = String(bioaraResponsibleSelect?.value || "").trim();
+  return snapshot;
+}
+
+function applyFormSnapshot(snapshot = {}) {
+  Object.entries(snapshot).forEach(([key, value]) => {
+    if (key === "selectedManualProducts" || key === "bioaraResponsibleEmail") return;
+    const field = form.elements[key];
+    if (!field || typeof field.value === "undefined") return;
+    field.value = String(value ?? "");
+  });
+
+  const restoredProducts = Array.isArray(snapshot.selectedManualProducts)
+    ? snapshot.selectedManualProducts
+    : [];
+  setSelectedManualProducts(restoredProducts);
+
+  const responsibleEmail = String(snapshot.bioaraResponsibleEmail || "").trim();
+  if (responsibleEmail && bioaraResponsibleSelect) {
+    const hasOption = Array.from(bioaraResponsibleSelect.options || []).some((opt) => String(opt.value || "").trim() === responsibleEmail);
+    if (hasOption) bioaraResponsibleSelect.value = responsibleEmail;
+  }
+
+  toggleBiosecurityAreaField(form.elements.desafio?.value);
+  toggleFoodConsumptionField();
+}
+
+function persistCurrentCaseDraft() {
+  if (!currentCaseData) return;
+
+  try {
+    const payload = {
+      version: 1,
+      savedAt: Date.now(),
+      formSnapshot: captureFormSnapshot(),
+      currentCaseData,
+      technicalApprovalRows,
+      veterinaryApprovalConfirmed: Boolean(veterinaryApprovalConfirmed),
+      veterinaryNotes: String(veterinaryNotes?.value || "")
+    };
+
+    sessionStorage.setItem(CASE_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) {
+    // Ignorado para no interrumpir el flujo principal.
+  }
+}
+
+function ensureCaseRuntimeFields(caseData) {
+  if (!caseData || typeof caseData !== "object") return caseData;
+
+  if (!caseData.fmt || typeof caseData.fmt.toMoney !== "function") {
+    caseData.fmt = {
+      toMoney: (value) => new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        maximumFractionDigits: 0
+      }).format(Number(value || 0))
+    };
+  }
+
+  return caseData;
+}
+
+function restoreCurrentCaseDraft() {
+  let draft = null;
+  try {
+    const raw = sessionStorage.getItem(CASE_DRAFT_STORAGE_KEY);
+    if (!raw) return false;
+    draft = JSON.parse(raw);
+  } catch (_) {
+    clearCurrentCaseDraft();
+    return false;
+  }
+
+  if (!draft || typeof draft !== "object" || !draft.currentCaseData) {
+    clearCurrentCaseDraft();
+    return false;
+  }
+
+  try {
+    applyFormSnapshot(draft.formSnapshot || {});
+
+    currentCaseData = ensureCaseRuntimeFields(draft.currentCaseData);
+    technicalApprovalRows = Array.isArray(draft.technicalApprovalRows)
+      ? draft.technicalApprovalRows
+      : buildTechnicalApprovalRows(currentCaseData);
+    veterinaryApprovalConfirmed = Boolean(draft.veterinaryApprovalConfirmed);
+
+    veterinaryApproval.checked = veterinaryApprovalConfirmed;
+    veterinaryNotes.value = String(draft.veterinaryNotes || "");
+
+    currentCaseData.technicalApprovalRows = technicalApprovalRows;
+    currentCaseData.veterinaryApprovalConfirmed = veterinaryApprovalConfirmed;
+
+    rebuildApprovedCaseView();
+    renderResult(resultBox, currentCaseData);
+    mountApprovalPanel();
+
+    resultBox.classList.remove("empty");
+    if (prioritySelectorPanel) prioritySelectorPanel.classList.remove("hidden");
+    if (priceCatalogSection) priceCatalogSection.hidden = false;
+    approvalPanel.classList.remove("hidden");
+    approvalStatus.textContent = veterinaryApprovalConfirmed ? "Aprobado" : "Pendiente";
+    approvalStatus.className = veterinaryApprovalConfirmed ? "status-badge status-approved" : "status-badge status-pending";
+    newCaseBtn.hidden = false;
+
+    saveMessage.hidden = false;
+    saveMessage.textContent = "Se restauró el caso en curso para continuar con PDF y correo.";
+
+    return true;
+  } catch (error) {
+    console.warn("No fue posible restaurar el borrador del caso:", error);
+    return false;
+  }
+}
+
+function ensureCaseContextForActions() {
+  if (currentCaseData) return true;
+
+  const restored = restoreCurrentCaseDraft();
+  if (restored && currentCaseData) return true;
+
+  saveMessage.hidden = false;
+  saveMessage.textContent = "No hay un caso activo para continuar. Calcula el caso nuevamente o restaura el borrador.";
+  return false;
 }
 
 function formatCatalogCategory(rawCategory = "") {
@@ -105,11 +327,14 @@ function formatCatalogCategory(rawCategory = "") {
 }
 
 function buildProductMeta(item) {
-  if (item.presentacion === "Según ficha técnica") {
-    return "Ficha técnica validada · Precio: Cotizar";
+  const presentacion = String(item.presentacion || "").trim();
+  const hasFichaFallback = /segun ficha|ficha t[eé]cnica/i.test(presentacion);
+
+  if (hasFichaFallback) {
+    return "Dosis y vía por criterio veterinario · Precio: Cotizar";
   }
 
-  return `${formatCatalogCategory(item.categoria)} · ${item.presentacion}`;
+  return `${formatCatalogCategory(item.categoria)} · ${presentacion || "Dosis y vía por criterio veterinario"}`;
 }
 
 function renderPriceCatalog() {
@@ -230,10 +455,13 @@ function buildTechnicalApprovalRows(caseData = {}) {
       const saved = savedRows.get(String(item.producto || "").trim()) || {};
       const ficha = FICHA_TECNICA_DEFAULTS[String(item.producto || "").trim()] || null;
 
-      const suggestedVia = String(protocol?.ruta || ficha?.via || caseData.viaPreferida || "Agua").trim() || "Agua";
+      const suggestedVia = normalizeApprovalRoute(
+        protocol?.ruta || ficha?.via || caseData.viaPreferida || "Agua",
+        normalizeApprovalRoute(caseData.viaPreferida || "Agua", "Agua")
+      );
       const suggestedDose = protocol?.cantidadDiaTexto || ficha?.dosis || "Dosis manual veterinaria";
       const suggestedDays = protocol?.duracionDias ? String(protocol.duracionDias) : (ficha?.dias || "");
-      const approvedVia = String(saved.viaAprobada || suggestedVia || "Agua").trim() || "Agua";
+      const approvedVia = normalizeApprovalRoute(saved.viaAprobada || suggestedVia || "Agua", suggestedVia);
       const approvedDose = saved.doseText ?? saved.dosisAprobada ?? suggestedDose;
       const approvedDays = saved.daysText ?? saved.diasAprobados ?? suggestedDays;
 
@@ -316,6 +544,8 @@ function rebuildApprovedCaseView() {
         const route = String(row.viaAprobada || protocol.ruta || "").trim();
         const approvedTotal = parseFloat((approvedDoseValue * approvedDays).toFixed(3));
 
+        const resolvedCost = Math.max(Number(protocol.costo || 0) * (approvedDoseValue / Math.max(Number(protocol.cantidadDia || approvedDoseValue || 1), 1)) * (approvedDays / Math.max(Number(protocol.duracionDias || approvedDays || 1), 1)), 0);
+
         return {
           ...protocol,
           ruta: route,
@@ -324,8 +554,12 @@ function rebuildApprovedCaseView() {
           cantidadDiaTexto: String(row.dosisAprobada || protocol.cantidadDiaTexto || ""),
           totalKg: approvedTotal,
           cantidadTotalTexto: `${approvedTotal} ${protocol.unidadDia || ""}`.trim(),
-          costo: Math.max(Number(protocol.costo || 0) * (approvedDoseValue / Math.max(Number(protocol.cantidadDia || approvedDoseValue || 1), 1)) * (approvedDays / Math.max(Number(protocol.duracionDias || approvedDays || 1), 1)), 0),
-          costoTexto: "Cotizar"
+          costo: resolvedCost,
+          costoTexto: resolvedCost > 0 ? new Intl.NumberFormat("es-CO", {
+            style: "currency",
+            currency: "COP",
+            maximumFractionDigits: 0
+          }).format(resolvedCost) : "Cotizar"
         };
       })
     : originalProtocols;
@@ -382,6 +616,7 @@ function syncTechnicalApprovalRows(nextRows) {
   technicalApprovalRows = Array.isArray(nextRows) ? nextRows : [];
   if (currentCaseData) {
     currentCaseData.technicalApprovalRows = technicalApprovalRows;
+    persistCurrentCaseDraft();
   }
 }
 
@@ -408,7 +643,10 @@ function updateTechnicalApprovalRow(producto, patch = {}) {
   }
 
   if (patch.viaAprobada && String(patch.viaAprobada).trim()) {
-    nextRows[rowIndex].viaAprobada = String(patch.viaAprobada).trim();
+    nextRows[rowIndex].viaAprobada = normalizeApprovalRoute(
+      patch.viaAprobada,
+      normalizeApprovalRoute(nextRows[rowIndex].viaAprobada || "Agua", "Agua")
+    );
   }
 
   syncTechnicalApprovalRows(nextRows);
@@ -438,7 +676,8 @@ function resetApprovalState() {
   approvalStatus.className = "status-badge status-pending";
 }
 
-function resetFormForNewCase() {
+function resetFormForNewCase(options = {}) {
+  const { clearDraft = true } = options;
   form.reset();
   resultBox.innerHTML = "Sin cálculo todavía.";
   resultBox.classList.add("empty");
@@ -460,6 +699,10 @@ function resetFormForNewCase() {
   if (priorityProductSearch) priorityProductSearch.value = "";
   if (prioritySelectorPanel) prioritySelectorPanel.classList.remove("hidden");
   if (priceCatalogSection) priceCatalogSection.hidden = true;
+
+  if (clearDraft) {
+    clearCurrentCaseDraft();
+  }
 
   form.querySelector('input[name="cliente"]').focus();
 }
@@ -754,7 +997,7 @@ form.addEventListener("submit", async (ev) => {
     protocolRuleSet
   });
   const caseDate = new Date().toISOString();
-  currentCaseData = { ...payload, ...calc, caseDate, reportGeneratedAt: caseDate };
+  currentCaseData = ensureCaseRuntimeFields({ ...payload, ...calc, caseDate, reportGeneratedAt: caseDate });
   initializeTechnicalApprovalRows(currentCaseData);
   rebuildApprovedCaseView();
   renderResult(resultBox, currentCaseData);
@@ -765,6 +1008,7 @@ form.addEventListener("submit", async (ev) => {
   approvalPanel.classList.remove("hidden");
   approvalStatus.textContent = "Pendiente";
   approvalStatus.className = "status-badge status-pending";
+  persistCurrentCaseDraft();
 
   const now = caseDate;
   const id = `CASO-${Date.now()}`;
@@ -925,6 +1169,7 @@ veterinaryApproval.addEventListener("change", () => {
   approvalStatus.className = veterinaryApproval.checked ? "status-badge status-approved" : "status-badge status-pending";
   renderResult(resultBox, currentCaseData);
   mountApprovalPanel();
+  persistCurrentCaseDraft();
 });
 
 function refreshDetailGate() {
@@ -940,6 +1185,8 @@ function refreshDetailGate() {
   if (detailPanel) {
     detailPanel.open = Boolean(veterinaryApprovalConfirmed && hasTechnicalValidation);
   }
+
+  persistCurrentCaseDraft();
 }
 
 if (approveDetailBtn) {
@@ -1053,12 +1300,12 @@ function buildApprovedSummaryHtml() {
     `
     : `<div class="section-box commercial-suggestion"><h3>Sugerencia técnica</h3><p>No disponible para este caso.</p></div>`;
 
-  const noRecHtml = noRec.map((item) => `
+  const noRecHtml = noRec.filter((item) => item && String(item.razon || "").trim()).map((item) => `
     <li>
       <strong>${escapeHtml(item.categoria)}</strong><br>
       <span>${escapeHtml(item.razon)}</span>
     </li>
-  `).join("") || "<li>No aplica.</li>";
+  `).join("") || "<li>No se identifican restricciones concretas para este caso; la propuesta se apoya en la evidencia técnica disponible y en el criterio veterinario.</li>";
 
   const protocolRows = protocolos.map((item) => `
     <tr>
@@ -1391,7 +1638,7 @@ function buildApprovedSummaryHtml() {
             <tbody>${protocolRows}</tbody>
           </table>
 
-          <h2>Elementos a evitar / no recomendados</h2>
+          <h2>Restricciones o precauciones del caso</h2>
           <div class="section-box">
             <ul>${noRecHtml}</ul>
           </div>
@@ -1412,7 +1659,10 @@ function buildApprovedSummaryHtml() {
 }
 
 async function printApprovedPdf() {
-  if (!currentCaseData) return;
+  if (!ensureCaseContextForActions()) return;
+
+  armDraftRestoreOnce("print_pdf");
+  persistCurrentCaseDraft();
 
   saveMessage.hidden = false;
   saveMessage.textContent = "Generando propuesta PDF con contexto y branding...";
@@ -1458,7 +1708,10 @@ async function printApprovedPdf() {
 }
 
 async function sendApprovedEmail() {
-  if (!currentCaseData) return;
+  if (!ensureCaseContextForActions()) return;
+
+  armDraftRestoreOnce("send_email");
+  persistCurrentCaseDraft();
 
   const recipientClient = String(form.elements.emailCliente?.value || "").trim();
   const officialDemoMail = "business@poultryia.com";
@@ -1613,6 +1866,10 @@ newCaseBtn.addEventListener("click", () => {
 
 printPdfBtn.addEventListener("click", printApprovedPdf);
 sendEmailBtn.addEventListener("click", sendApprovedEmail);
+veterinaryNotes.addEventListener("input", () => {
+  if (!currentCaseData) return;
+  persistCurrentCaseDraft();
+});
 
 refreshBenchmarkBtn.addEventListener("click", async () => {
   await refreshBenchmarkFromWeb();
@@ -1662,6 +1919,11 @@ renderPriorityProductList();
 loadBioaraResponsibleList();
 applyMarketDefaultsToForm();
 refreshHistory();
-resetFormForNewCase();
+resetFormForNewCase({ clearDraft: false });
+if (consumeDraftRestoreFlag()) {
+  restoreCurrentCaseDraft();
+} else {
+  clearCurrentCaseDraft();
+}
 toggleBiosecurityAreaField(form.elements.desafio?.value);
 if (prioritySelectorPanel) prioritySelectorPanel.classList.remove("hidden");

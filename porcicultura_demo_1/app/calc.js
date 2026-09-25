@@ -19,6 +19,19 @@ function toMoney(value) {
   }).format(value);
 }
 
+function getProtocolInvestmentValue(protocol) {
+  const value = Number(protocol?.costo ?? 0);
+  if (Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (!protocol || String(protocol.costoTexto || "").trim().toLowerCase() === "cotizar") {
+    return 0;
+  }
+
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 function normalizeDoseUnit(unit) {
   const value = String(unit || "").toLowerCase();
   if (value.includes("ml")) return "ml";
@@ -953,7 +966,7 @@ export function calculateCase(payload, options = {}) {
     };
   });
 
-  const inversionTotal = protocolos.reduce((sum, p) => sum + p.costo, 0);
+  const inversionTotal = protocolos.reduce((sum, p) => sum + getProtocolInvestmentValue(p), 0);
 
   const ahorroMortalidad = n * (DEFAULTS.reduccionMortalidadPctEscenario / 100) * peso * Number(payload.precioCerdo);
   const ahorroFca = n * DEFAULTS.mejoraFcaEscenario * DEFAULTS.kgGanadosEtapaEscenario * Number(payload.costoAlimento);

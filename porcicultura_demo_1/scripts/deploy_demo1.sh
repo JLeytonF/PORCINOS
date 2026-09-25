@@ -64,15 +64,16 @@ sudo mkdir -p "${REMOTE_PATH}/server"
 sudo rsync -av --delete \
     --exclude='node_modules/' \
     --exclude='storage/' \
+    --exclude='.env' \
     "${TEMP_DIR}/server/" "${REMOTE_PATH}/server/"
 sudo chown -R jleyton:jleyton "${REMOTE_PATH}/server"
 
 rm -rf "${TEMP_DIR}"
 echo "  Archivos instalados"
 
-# Instalar dependencias Node del backend (PATH incluye nvm para que npm encuentre node)
+# Instalar dependencias Node del backend (usar la ruta real del runtime en el servidor)
 cd "${REMOTE_PATH}/server"
-export PATH="${NODE_BIN%/node}:${PATH}"
+export PATH="/home/jleyton/.nvm/versions/node/v22.21.0/bin:${PATH}"
 "${NPM_BIN}" install --omit=dev --quiet 2>&1 | tail -3
 echo "  Dependencias del backend instaladas"
 
@@ -93,9 +94,37 @@ DATA_DIR=/var/www/poultryia.com/porcicultura-demo-1/server/storage
 LOG_LEVEL=info
 NODE_ENV=production
 ENVFILE
-    echo "  .env de producción creado (falta SMTP_PASS)"
+    echo "  .env de producción creado; se inyectará SMTP_PASS desde el entorno del servidor"
 else
-    echo "  .env ya existe, se conserva"
+    echo "  .env ya existe, se conserva y se revalidará SMTP_PASS"
+fi
+
+# Inyectar SMTP_PASS desde un entorno de correo real del servidor si existe; nunca hardcodear secretos
+SMTP_SOURCE=""
+for ENV_CANDIDATE in \
+    /var/www/poultryia.com/server/.env \
+    /var/www/poultryia.com/backend_notificaciones_py/.env \
+    /var/www/poultryia.com/backend_portal_py/.env \
+    /var/www/poultryia.com/backend_base_py/.env \
+    /var/www/poultryia.com/backend_mercado_py/.env \
+    /var/www/poultryia.com/env-production/*.env; do
+    [ -f "\$ENV_CANDIDATE" ] || continue
+    if grep -Eq '^SMTP_PASS=' "\$ENV_CANDIDATE" 2>/dev/null; then
+        SMTP_SOURCE="\$ENV_CANDIDATE"
+        break
+    fi
+done
+
+if [ -n "\$SMTP_SOURCE" ]; then
+    SMTP_PASS_VALUE="$(grep -oE '^SMTP_PASS=.*' "\$SMTP_SOURCE" | head -n 1 | cut -d= -f2- | tr -d '"\r' || true)"
+    if [ -n "\$SMTP_PASS_VALUE" ] && [ "\$SMTP_PASS_VALUE" != "INJECT_FROM_MAIL_SERVICE" ] && [ "\$SMTP_PASS_VALUE" != "your_smtp_password_here" ] && [ "\$SMTP_PASS_VALUE" != "" ]; then
+        sed -i -E "s|^SMTP_PASS=.*|SMTP_PASS=\${SMTP_PASS_VALUE}|" "${REMOTE_PATH}/server/.env"
+        echo "  SMTP_PASS inyectado desde \${SMTP_SOURCE}"
+    else
+        echo "  SMTP_PASS presente en el origen pero vacío o placeholder; se conserva el valor actual"
+    fi
+else
+    echo "  No se encontró un .env con SMTP_PASS en el servidor; el backend seguirá en dry_run hasta que exista una fuente real"
 fi
 
 # Crear directorio de storage
@@ -155,6 +184,13 @@ ssh ${SSH_OPTS} "${SERVER}" bash -s << REMOTE
 set -euo pipefail
 
 cd "${REMOTE_PATH}/server"
+
+export PATH="/home/jleyton/.nvm/versions/node/v22.21.0/bin:${PATH}"
+
+if ! command -v node >/dev/null 2>&1; then
+    echo "  ERROR: node no está disponible en PATH del servidor"
+    exit 1
+fi
 
 if "${PM2_BIN}" list | grep -q "${PM2_NAME}"; then
     "${PM2_BIN}" reload "${PM2_NAME}" --update-env

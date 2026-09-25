@@ -152,6 +152,193 @@ function buildPdf(caseId, payload) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function resolveProtocolRows(payload = {}) {
+  if (Array.isArray(payload.approvedProtocols) && payload.approvedProtocols.length) {
+    return payload.approvedProtocols;
+  }
+  if (Array.isArray(payload.protocolos) && payload.protocolos.length) {
+    return payload.protocolos;
+  }
+  return [];
+}
+
+function buildMailContent(caseRecord) {
+  const payload = caseRecord?.payload || {};
+  const approval = caseRecord?.approval || {};
+  const jev = payload.jev || evaluateJEV(payload);
+  const protocolos = resolveProtocolRows(payload);
+  const approvedPriority = Array.isArray(payload.approvedPriorityOne) && payload.approvedPriorityOne.length
+    ? payload.approvedPriorityOne
+    : (Array.isArray(payload.unifiedPriorityOne) ? payload.unifiedPriorityOne.filter((item) => Number(item.prioridad || 0) === 1) : []);
+  const includesFullProposalInBody = /Protocolo recomendado|JEV \(Justificaci[oó]n \/ Evidencia \/ Verificaci[oó]n\)|Resumen financiero/i.test(JSON.stringify({ text: payload?.veterinaryNotes || "", jev, protocolos, approvedPriority }));
+  const shouldAttachPdf = Boolean(caseRecord.pdf) && !includesFullProposalInBody;
+
+  const consumoAgua = Number(payload?.consumo?.aguaLote || 0).toFixed(2);
+  const consumoAlimento = Number(payload?.consumo?.alimLote || 0).toFixed(2);
+  const consumoReal = Number(payload.consumoAlimentoRealKgDia || 0).toFixed(2);
+  const inversion = prettyCurrency(payload.inversionTotalCop || payload?.financiero?.inversionTotal || 0);
+  const roi = Number(payload.roiPct || payload?.financiero?.roi || 0).toFixed(2);
+
+  const protocolText = protocolos.length
+    ? protocolos.map((item, index) => {
+        const nombre = item.producto || `Producto ${index + 1}`;
+        const ruta = item.ruta || item.viaAprobada || 'Definir';
+        const dosis = item.cantidadDiaTexto || item.dosisAprobada || item.doseUnit || item.dosisUnidad || 'Dosis MVZ';
+        const dias = item.duracionDias || item.diasAprobados || 'ND';
+        const total = item.cantidadTotalTexto || item.totalTexto || 'Validar con criterio MVZ';
+        const costo = item.costoTexto || prettyCurrency(item.costo || 0);
+        return `${index + 1}. ${nombre} | Ruta: ${ruta} | Dosis: ${dosis} | Días: ${dias} | Total: ${total} | Inversión: ${costo}`;
+      }).join('\n')
+    : 'Sin protocolo detallado disponible.';
+
+  const protocolRowsHtml = protocolos.length
+    ? protocolos.map((item, index) => {
+        const nombre = item.producto || `Producto ${index + 1}`;
+        const ruta = item.ruta || item.viaAprobada || 'Definir';
+        const dosis = item.cantidadDiaTexto || item.dosisAprobada || item.doseUnit || item.dosisUnidad || 'Dosis MVZ';
+        const dias = item.duracionDias || item.diasAprobados || 'ND';
+        const total = item.cantidadTotalTexto || item.totalTexto || 'Validar con criterio MVZ';
+        const costo = item.costoTexto || prettyCurrency(item.costo || 0);
+        return `<tr>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(String(index + 1))}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(nombre)}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(ruta)}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(dosis)}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(String(dias))}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(total)}</td>
+          <td style="border:1px solid #d8e6df; padding:8px;">${escapeHtml(costo)}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="7" style="border:1px solid #d8e6df; padding:8px;">Sin protocolo detallado disponible.</td></tr>`;
+
+  const priorityText = approvedPriority.length
+    ? approvedPriority.map((item) => `- ${item.producto} (${item.categoria || 'Categoría N/D'})`).join('\n')
+    : '- Sin prioridad 1 registrada';
+
+  const jevChecksText = (jev.verification?.checks || [])
+    .map((check) => `- ${check.name}: ${check.ok ? 'OK' : 'FALLA'} / ${check.detail}`)
+    .join('\n');
+
+  const subject = `Propuesta técnica BioARA AI - ${payload.cliente || 'Cliente'} - Caso ${caseRecord.id}`;
+  const attachmentNote = shouldAttachPdf
+    ? `Adjunto encontrará la propuesta técnica completa del caso ${caseRecord.id}.`
+    : `La propuesta técnica del caso ${caseRecord.id} se presenta en el cuerpo del correo para evitar duplicar el contenido del PDF.`;
+
+  const text = [
+    'Estimado/a:',
+    '',
+    attachmentNote,
+    '',
+    'Datos del caso',
+    `- Cliente: ${payload.cliente || 'N/A'}`,
+    `- Granja: ${payload.granja || 'N/A'}`,
+    `- Fase: ${payload.fase || 'N/A'}`,
+    `- Vía preferida: ${payload.viaPreferida || 'N/A'}`,
+    `- Desafío: ${payload.desafio || 'N/A'}`,
+    `- Consumo agua lote/día: ${consumoAgua} L`,
+    `- Consumo alimento lote/día: ${consumoAlimento} kg`,
+    `- Consumo real del lote: ${consumoReal} kg/día`,
+    '',
+    'Aprobación veterinaria',
+    `- Veterinario: ${approval.veterinarianName || 'Médico Veterinario BioARA'}`,
+    `- Vía aprobada: ${approval.viaAprobada || payload.viaPreferida || 'N/A'}`,
+    `- Dosis aprobada: ${approval.dosisAprobada || 'Sin dosis'}`,
+    `- Días aprobados: ${approval.diasAprobados || 'N/D'}`,
+    `- Observaciones: ${approval.observaciones || payload.veterinaryNotes || 'Sin observaciones'}`,
+    '',
+    'Prioridad 1',
+    priorityText,
+    '',
+    'Protocolo recomendado',
+    protocolText,
+    '',
+    'JEV (Justificación / Evidencia / Verificación)',
+    `- Estado: ${jev.status}`,
+    `- Justificación: ${jev.justification?.razon || 'N/A'}`,
+    `- Resumen: ${jev.verification?.summary || 'N/A'}`,
+    jevChecksText || '- Sin checks JEV',
+    '',
+    'Resumen financiero',
+    `- Inversión estimada: ${inversion}`,
+    `- ROI estimado: ${roi}%`,
+    '',
+    'Saludos,',
+    'Equipo BioARA AI',
+    'business@poultryia.com'
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:Segoe UI, Arial, sans-serif; color:#17312b; line-height:1.5;">
+      <h2 style="margin:0 0 8px; color:#0b5d47;">Propuesta técnica BioARA AI</h2>
+      <p style="margin:0 0 14px;">Caso <strong>${escapeHtml(caseRecord.id)}</strong></p>
+
+      <h3 style="margin:18px 0 8px; color:#0b5d47;">Datos del caso</h3>
+      <ul style="margin-top:0;">
+        <li><strong>Cliente:</strong> ${escapeHtml(payload.cliente || 'N/A')}</li>
+        <li><strong>Granja:</strong> ${escapeHtml(payload.granja || 'N/A')}</li>
+        <li><strong>Fase:</strong> ${escapeHtml(payload.fase || 'N/A')}</li>
+        <li><strong>Vía preferida:</strong> ${escapeHtml(payload.viaPreferida || 'N/A')}</li>
+        <li><strong>Desafío:</strong> ${escapeHtml(payload.desafio || 'N/A')}</li>
+        <li><strong>Consumo agua lote/día:</strong> ${escapeHtml(consumoAgua)} L</li>
+        <li><strong>Consumo alimento lote/día:</strong> ${escapeHtml(consumoAlimento)} kg</li>
+        <li><strong>Consumo real del lote:</strong> ${escapeHtml(consumoReal)} kg/día</li>
+      </ul>
+
+      <h3 style="margin:18px 0 8px; color:#0b5d47;">Aprobación veterinaria</h3>
+      <ul style="margin-top:0;">
+        <li><strong>Veterinario:</strong> ${escapeHtml(approval.veterinarianName || 'Médico Veterinario BioARA')}</li>
+        <li><strong>Vía aprobada:</strong> ${escapeHtml(approval.viaAprobada || payload.viaPreferida || 'N/A')}</li>
+        <li><strong>Dosis aprobada:</strong> ${escapeHtml(approval.dosisAprobada || 'Sin dosis')}</li>
+        <li><strong>Días aprobados:</strong> ${escapeHtml(String(approval.diasAprobados || 'N/D'))}</li>
+        <li><strong>Observaciones:</strong> ${escapeHtml(approval.observaciones || payload.veterinaryNotes || 'Sin observaciones')}</li>
+      </ul>
+
+      <h3 style="margin:18px 0 8px; color:#0b5d47;">Protocolo recomendado</h3>
+      <table style="border-collapse:collapse; width:100%; font-size:12px;">
+        <thead>
+          <tr style="background:#edf7f2;">
+            <th style="border:1px solid #d8e6df; padding:8px;">#</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Producto</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Ruta</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Dosis</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Días</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Total tratamiento</th>
+            <th style="border:1px solid #d8e6df; padding:8px;">Inversión</th>
+          </tr>
+        </thead>
+        <tbody>${protocolRowsHtml}</tbody>
+      </table>
+
+      <h3 style="margin:18px 0 8px; color:#0b5d47;">JEV (Justificación / Evidencia / Verificación)</h3>
+      <ul style="margin-top:0;">
+        <li><strong>Estado:</strong> ${escapeHtml(jev.status)}</li>
+        <li><strong>Justificación:</strong> ${escapeHtml(jev.justification?.razon || 'N/A')}</li>
+        <li><strong>Resumen:</strong> ${escapeHtml(jev.verification?.summary || 'N/A')}</li>
+      </ul>
+
+      <h3 style="margin:18px 0 8px; color:#0b5d47;">Resumen financiero</h3>
+      <ul style="margin-top:0;">
+        <li><strong>Inversión estimada:</strong> ${escapeHtml(inversion)}</li>
+        <li><strong>ROI estimado:</strong> ${escapeHtml(roi)}%</li>
+      </ul>
+
+      <p style="margin-top:20px;">${shouldAttachPdf ? 'Adjunto: PDF oficial de la propuesta técnica.' : 'La propuesta técnica se presenta en el cuerpo del correo para evitar duplicar el contenido del PDF.'}</p>
+      <p style="margin-top:16px;">Saludos,<br/><strong>Equipo BioARA AI</strong><br/>business@poultryia.com</p>
+    </div>
+  `;
+
+  return { subject, text, html, shouldAttachPdf };
+}
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: process.env.APP_NAME || 'Porcicultura Hostinger Backend', timestamp: new Date().toISOString() });
 });
@@ -281,25 +468,20 @@ app.post('/api/cases/:id/send-email', async (req, res) => {
       caseRecord.payload.emailBioara || 'business@poultryia.com'
     ].filter(Boolean);
 
-    const mailText = [
-      'Estimado/a:',
-      '',
-      `Adjunto la propuesta técnica de ${caseRecord.payload.cliente || 'Cliente'}.`,
-      `Granja: ${caseRecord.payload.granja || 'N/A'}`,
-      `Vía aprobada: ${caseRecord.approval?.viaAprobada || caseRecord.payload.viaPreferida}`,
-      `Dosis aprobada: ${caseRecord.approval?.dosisAprobada || 'Sin dosis'}`,
-      `Observaciones del veterinario: ${caseRecord.approval?.observaciones || 'Sin observaciones'}`,
-      '',
-      'Saludos,',
-      'Equipo BioARA AI'
-    ].join('\n');
+    const mailContent = buildMailContent(caseRecord);
+    const attachments = mailContent.shouldAttachPdf && caseRecord.pdf
+      ? [{
+          filename: path.basename(caseRecord.pdf.fileName),
+          path: caseRecord.pdf.absolutePath
+        }]
+      : [];
 
     const emailRecord = {
       caseId: req.params.id,
       to: recipient,
       cc: ccRecipients,
-      subject: `Propuesta técnica BioARA AI - ${caseRecord.payload.cliente || 'Cliente'}`,
-      body: mailText,
+      subject: mailContent.subject,
+      body: mailContent.text,
       provider: transport ? 'smtp' : 'dry_run'
     };
 
@@ -314,11 +496,9 @@ app.post('/api/cases/:id/send-email', async (req, res) => {
       to: recipient,
       cc: ccRecipients,
       subject: emailRecord.subject,
-      text: mailText,
-      attachments: [{
-        filename: path.basename(caseRecord.pdf.fileName),
-        path: caseRecord.pdf.absolutePath
-      }]
+      text: mailContent.text,
+      html: mailContent.html,
+      attachments
     });
 
     const updated = saveEmailRecord(req.params.id, {

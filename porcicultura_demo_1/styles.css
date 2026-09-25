@@ -504,7 +504,14 @@ button:hover { filter: brightness(1.05); }
 .technical-approval-table input,
 .technical-approval-table select,
 .technical-approval-table button {
-  cursor: auto;
+  cursor: pointer;
+}
+
+.technical-approval-table select,
+.technical-approval-table input,
+.technical-approval-table button {
+  pointer-events: auto;
+  z-index: 1;
 }
 
 .approval-cell-note,

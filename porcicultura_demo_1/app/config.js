@@ -318,7 +318,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "BACTERINA HS F",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -328,7 +328,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "BACTERINA PLEUROSUIS",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -338,7 +338,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "BACTERINA MYCOSUIS HP",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -348,7 +348,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "BACTERINA TOXOIDE E. COLI",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -358,7 +358,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "E. COLI ORAL",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -368,7 +368,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "CEPA F",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -378,7 +378,7 @@ const FALLBACK_PRICE_CATALOG = [
   {
     producto: "ADITIVO PRRSv",
     categoria: "Biologico",
-    presentacion: "Según ficha técnica",
+    presentacion: "Dosis y vía por criterio veterinario",
     unidadPresentacion: "und",
     precioUnitarioCop: 0,
     costoReferenciaCop: 0,
@@ -419,18 +419,22 @@ function parseCsvPriceCatalog(text) {
 }
 
 async function loadPriceCatalog() {
-  const csvPath = new URL("../../V1_app_data/01_precios_supuestos_bioara.csv", import.meta.url);
+  const csvCandidates = [
+    new URL("../../LISTA DE PRECIOS/01_precios_supuestos_bioara.csv", import.meta.url),
+    new URL("../../V1_app_data/01_precios_supuestos_bioara.csv", import.meta.url)
+  ];
 
-  try {
-    const response = await fetch(csvPath, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("CSV no disponible");
+  for (const csvPath of csvCandidates) {
+    try {
+      const response = await fetch(csvPath, { cache: "no-store" });
+      if (!response.ok) continue;
+
+      const csvText = await response.text();
+      const parsed = parseCsvPriceCatalog(csvText);
+      if (parsed.length) return parsed;
+    } catch (error) {
+      console.warn("No se pudo cargar la CSV, intentando la siguiente fuente:", csvPath.href, error);
     }
-    const csvText = await response.text();
-    const parsed = parseCsvPriceCatalog(csvText);
-    if (parsed.length) return parsed;
-  } catch (error) {
-    console.warn("No se pudo cargar la CSV, usando fallback PDF:", error);
   }
 
   return FALLBACK_PRICE_CATALOG;

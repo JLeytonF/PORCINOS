@@ -97,7 +97,7 @@ export function renderResult(container, data) {
     ? `<details class="support-panel"><summary>Soporte adicional</summary><ul>${supportItems}</ul></details>`
     : `<details class="support-panel"><summary>Soporte adicional</summary><ul><li>No requiere soporte adicional en esta recomendación.</li></ul></details>`;
 
-  const noRecommendedItems = (noRecomendados || []).map((item) => `
+  const noRecommendedItems = (noRecomendados || []).filter((item) => item && String(item.razon || "").trim()).map((item) => `
     <li>
       <strong>${item.categoria}</strong><br>
       <small>${item.razon}</small>
@@ -142,9 +142,11 @@ export function renderResult(container, data) {
             <option value="Agua" ${selectedVia === "Agua" ? "selected" : ""}>Agua</option>
             <option value="Alimento" ${selectedVia === "Alimento" ? "selected" : ""}>Alimento</option>
             <option value="Agua+Alimento" ${selectedVia === "Agua+Alimento" ? "selected" : ""}>Agua + Alimento</option>
+            <option value="Oral" ${selectedVia === "Oral" ? "selected" : ""}>Oral</option>
             <option value="Inyectable IM" ${selectedVia === "Inyectable IM" ? "selected" : ""}>Inyectable IM</option>
             <option value="Inyectable SC" ${selectedVia === "Inyectable SC" ? "selected" : ""}>Inyectable SC</option>
-            <option value="Oral" ${selectedVia === "Oral" ? "selected" : ""}>Oral</option>
+            <option value="Aspersión" ${selectedVia === "Aspersión" ? "selected" : ""}>Aspersión</option>
+            <option value="Vía veterinaria" ${selectedVia === "Vía veterinaria" ? "selected" : ""}>Vía veterinaria</option>
           </select>
           <div class="approval-reference">${row.tieneReferencia ? `${row.dosisSugerida} · ${row.diasSugeridos || "ND"} días` : row.sugerido}</div>
           <input type="text" class="approval-input" data-tech-approval-product="${escapeHtml(row.producto)}" data-tech-approval-field="dose" value="${escapeHtml(row.dosisAprobada || "")}" placeholder="Dosis aprobada" />
@@ -216,8 +218,8 @@ export function renderResult(container, data) {
       </ul>
     </div>
     <div class="summary-section">
-      <h4>No recomendado</h4>
-      <ul>${noRecommendedItems || "<li>No hay restricciones de prioridad claramente indicadas para este caso.</li>"}</ul>
+      <h4>Restricciones o precauciones del caso</h4>
+      <ul>${noRecommendedItems || "<li>No se identifican restricciones concretas para este caso; la recomendación se apoya en la evidencia técnica disponible y en el criterio veterinario.</li>"}</ul>
     </div>
     <details class="support-panel" ${approvalReady ? "open" : ""}>
       <summary>Detalle expandible</summary>
