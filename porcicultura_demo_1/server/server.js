@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'node:crypto';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +17,9 @@ import {
   saveEmailRecord,
   updateCase,
   writeAudit,
-  getPdfBaseDir
+  getPdfBaseDir,
+  recordPageView,
+  getPageViewSummary
 } from './src/store.js';
 
 dotenv.config();
@@ -45,6 +48,48 @@ app.use(express.json({ limit: '10mb' }));
 
 function prettyCurrency(value) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function hashValue(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  return `sha256:${crypto.createHash('sha256').update(String(value)).digest('hex')}`;
+}
+
+function normalizeRequestPath(req) {
+  const raw = req.originalUrl || req.url || '/';
+  try {
+    const parsed = new URL(raw, 'https://poultryia.com');
+    return parsed.pathname || '/';
+  } catch (error) {
+    return raw.split('?')[0] || '/';
+  }
+}
+
+function resolveCampaignToken(req, payload = {}) {
+  const explicit = payload.campaignToken || payload.campaign_token || payload.t || null;
+  if (explicit) return String(explicit);
+  const fromQuery = req.query?.t || req.query?.campaignToken || req.query?.campaign_token || null;
+  if (fromQuery) return String(fromQuery);
+  const fromHeader = req.headers['x-campaign-token'] || req.headers['x-campaign'] || null;
+  if (fromHeader) return Array.isArray(fromHeader) ? String(fromHeader[0]) : String(fromHeader);
+  return null;
+}
+
+function buildPageViewFromRequest(req, payload = {}) {
+  const ipValue = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || payload.ip || 'unknown';
+  const realIp = Array.isArray(ipValue) ? ipValue[0] : String(ipValue).split(',')[0].trim();
+  const userAgent = req.headers['user-agent'] || payload.userAgent || 'unknown';
+
+  return {
+    path: payload.path || normalizeRequestPath(req),
+    ip_hash: hashValue(realIp),
+    user_agent_hash: hashValue(userAgent),
+    campaign_token: resolveCampaignToken(req, payload),
+    source: payload.source || 'poultryia-web',
+    referrer: payload.referrer || req.headers.referer || null,
+    session_id: payload.sessionId || payload.session_id || null,
+    timestamp: new Date().toISOString()
+  };
 }
 
 function buildPdfFileName(caseId, cliente) {
@@ -343,6 +388,32 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: process.env.APP_NAME || 'Porcicultura Hostinger Backend', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/porc/health', (req, res) => {
+  res.json({ ok: true, app: process.env.APP_NAME || 'Porcicultura Hostinger Backend', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/porc/page-view', (req, res) => {
+  try {
+    const payload = req.body || {};
+    const event = buildPageViewFromRequest(req, payload);
+    const record = recordPageView(event);
+    return res.status(201).json({ ok: true, pageView: record });
+  } catch (error) {
+    console.error('page-view error', error);
+    return res.status(500).json({ ok: false, message: 'No se pudo registrar la visita.', details: String(error.message || error) });
+  }
+});
+
+app.get('/api/porc/page-view', (req, res) => {
+  const list = recordPageView(buildPageViewFromRequest(req, { path: normalizeRequestPath(req), source: 'poultryia-web' }));
+  res.json({ ok: true, pageView: list });
+});
+
+app.get('/api/porc/metrics', (req, res) => {
+  const metrics = getPageViewSummary();
+  res.json({ ok: true, metrics });
+});
+
 app.post('/api/cases/validate', (req, res) => {
   const payload = req.body || {};
   const validation = validateRequiredFields(payload);
@@ -384,6 +455,10 @@ app.get('/api/cases', (req, res) => {
   res.json({ ok: true, cases: listCases() });
 });
 
+app.get('/api/porc/cases', (req, res) => {
+  res.json({ ok: true, cases: listCases() });
+});
+
 app.get('/api/cases/:id', (req, res) => {
   const caseRecord = getCaseById(req.params.id);
   if (!caseRecord) {
@@ -392,7 +467,51 @@ app.get('/api/cases/:id', (req, res) => {
   return res.json({ ok: true, case: caseRecord });
 });
 
+app.get('/api/porc/cases/:id', (req, res) => {
+  const caseRecord = getCaseById(req.params.id);
+  if (!caseRecord) {
+    return res.status(404).json({ ok: false, message: 'Caso no encontrado' });
+  }
+  return res.json({ ok: true, case: caseRecord });
+});
+
 app.post('/api/cases/:id/approve', async (req, res) => {
+  try {
+    const { veterinarianName, viaAprobada, dosisAprobada, diasAprobados, observaciones } = req.body || {};
+    const caseRecord = getCaseById(req.params.id);
+    if (!caseRecord) {
+      return res.status(404).json({ ok: false, message: 'Caso no encontrado' });
+    }
+
+    if (!veterinarianName || !viaAprobada || !dosisAprobada || !Number(diasAprobados) || Number(diasAprobados) <= 0) {
+      return res.status(400).json({ ok: false, message: 'La aprobación debe incluir veterinario, vía, dosis y días.' });
+    }
+
+    const finalApproval = {
+      veterinarianName,
+      viaAprobada,
+      dosisAprobada,
+      diasAprobados: Number(diasAprobados),
+      observaciones: observaciones || 'Sin observaciones adicionales',
+      approvedAt: new Date().toISOString(),
+      signed: true
+    };
+
+    const updated = updateCase(req.params.id, {
+      status: 'approved',
+      approval: finalApproval,
+      version: Number(caseRecord.version || 1) + 1
+    });
+
+    writeAudit('case_approved', { caseId: req.params.id, approval: finalApproval });
+    return res.json({ ok: true, case: updated });
+  } catch (error) {
+    console.error('approve case error', error);
+    return res.status(500).json({ ok: false, message: 'Error aprobando caso', details: String(error.message || error) });
+  }
+});
+
+app.post('/api/porc/cases/:id/approve', async (req, res) => {
   try {
     const { veterinarianName, viaAprobada, dosisAprobada, diasAprobados, observaciones } = req.body || {};
     const caseRecord = getCaseById(req.params.id);
@@ -450,7 +569,94 @@ app.post('/api/cases/:id/render-pdf', async (req, res) => {
   }
 });
 
+app.post('/api/porc/cases/:id/render-pdf', async (req, res) => {
+  try {
+    const caseRecord = getCaseById(req.params.id);
+    if (!caseRecord) {
+      return res.status(404).json({ ok: false, message: 'Caso no encontrado' });
+    }
+
+    if (!caseRecord.approval || !caseRecord.approval.signed) {
+      return res.status(422).json({ ok: false, message: 'El caso debe estar aprobado antes de generar PDF.' });
+    }
+
+    const result = await buildPdf(req.params.id, caseRecord.payload);
+    const updated = savePdfArtifact(req.params.id, result.fileName, result.absolutePath);
+    writeAudit('pdf_generated', { caseId: req.params.id, pdf: result.fileName });
+
+    res.json({ ok: true, case: updated, pdf: result });
+  } catch (error) {
+    console.error('render pdf error', error);
+    return res.status(500).json({ ok: false, message: 'Error generando PDF', details: String(error.message || error) });
+  }
+});
+
 app.post('/api/cases/:id/send-email', async (req, res) => {
+  try {
+    const caseRecord = getCaseById(req.params.id);
+    if (!caseRecord) {
+      return res.status(404).json({ ok: false, message: 'Caso no encontrado' });
+    }
+
+    if (!caseRecord.pdf) {
+      return res.status(422).json({ ok: false, message: 'Debe generarse antes el PDF del caso.' });
+    }
+
+    const transport = ensureSmtpTransport();
+    const recipient = String(caseRecord.payload.emailCliente || process.env.EMAIL_TO_DEFAULT || 'business@poultryia.com').trim();
+    const ccRecipients = [
+      process.env.SMTP_FROM || 'business@poultryia.com',
+      caseRecord.payload.emailBioara || 'business@poultryia.com'
+    ].filter(Boolean);
+
+    const mailContent = buildMailContent(caseRecord);
+    const attachments = mailContent.shouldAttachPdf && caseRecord.pdf
+      ? [{
+          filename: path.basename(caseRecord.pdf.fileName),
+          path: caseRecord.pdf.absolutePath
+        }]
+      : [];
+
+    const emailRecord = {
+      caseId: req.params.id,
+      to: recipient,
+      cc: ccRecipients,
+      subject: mailContent.subject,
+      body: mailContent.text,
+      provider: transport ? 'smtp' : 'dry_run'
+    };
+
+    if (!transport) {
+      saveEmailRecord(req.params.id, { ...emailRecord, status: 'dry_run', trackingId: `dry-${uuidv4()}` });
+      writeAudit('email_dry_run', { caseId: req.params.id, emailRecord });
+      return res.json({ ok: true, message: 'Sin SMTP configurado; correo en modo dry_run.', email: emailRecord });
+    }
+
+    const result = await transport.sendMail({
+      from: process.env.SMTP_FROM || 'business@poultryia.com',
+      to: recipient,
+      cc: ccRecipients,
+      subject: emailRecord.subject,
+      text: mailContent.text,
+      html: mailContent.html,
+      attachments
+    });
+
+    const updated = saveEmailRecord(req.params.id, {
+      ...emailRecord,
+      status: 'sent',
+      trackingId: result?.messageId || `smtp-${uuidv4()}`
+    });
+
+    writeAudit('email_sent', { caseId: req.params.id, emailRecord, smtpMessageId: result?.messageId });
+    res.json({ ok: true, message: 'Correo enviado desde SMTP real de Hostinger.', email: updated.email });
+  } catch (error) {
+    console.error('send-email error', error);
+    return res.status(500).json({ ok: false, message: 'Error enviando correo', details: String(error.message || error) });
+  }
+});
+
+app.post('/api/porc/cases/:id/send-email', async (req, res) => {
   try {
     const caseRecord = getCaseById(req.params.id);
     if (!caseRecord) {

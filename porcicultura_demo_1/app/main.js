@@ -75,6 +75,28 @@ function normalizeApprovalRoute(rawRoute, fallback = "Agua") {
   return fallbackRoute;
 }
 
+async function registerPageView() {
+  try {
+    const url = new URL(window.location.href);
+    const payload = {
+      path: `${window.location.pathname}${window.location.search}` || '/',
+      source: 'porcicultura-demo',
+      campaignToken: url.searchParams.get('t') || null
+    };
+
+    await fetch('/api/porc/page-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true
+    });
+  } catch (error) {
+    console.warn('No se pudo registrar page_view:', error);
+  }
+}
+
+registerPageView();
+
 const FALLBACK_BIOARA_RESPONSIBLES = [
   { nombre: "Dr. Alejandro Rodriguez", email: "gerencia@bioarasa.com" },
   { nombre: "Dra. Juliana Florez", email: "asistentedeventas@bioarasa.com" },

@@ -20,7 +20,8 @@
 - app/main.js: orquestacion y eventos.
 
 ## Gobernanza tecnica y control de calidad
-- Protocolo HARNESS del proyecto: ../GRAFOS_ARNES_AGENTES.md
+- Fuente normativa del proyecto: ../docs/architecture/PROTOCOLO_GRAFOS_HARNESS.md
+- Referencia local para Porcicultura y demo: ../GRAFOS_ARNES_AGENTES.md
 - Este protocolo define quality gates para cambios en catalogo, reglas de recomendacion y validaciones.
 
 ## Flujo de sincronizacion (demo)

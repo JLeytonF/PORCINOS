@@ -154,7 +154,7 @@ if ! grep -q "api/porc" "${NGINX_SNIPPET}" 2>/dev/null; then
 
 # Porcicultura Demo 1 — backend API
 location /api/porc/ {
-    proxy_pass http://127.0.0.1:3005/api/;
+    proxy_pass http://127.0.0.1:3005;
     proxy_http_version 1.1;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;

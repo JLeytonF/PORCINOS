@@ -8,6 +8,7 @@ dotenv.config();
 const dataDir = process.env.DATA_DIR || './storage';
 const casesFile = path.join(dataDir, 'cases.json');
 const auditFile = path.join(dataDir, 'audit.json');
+const pageViewsFile = path.join(dataDir, 'page_views.json');
 const pdfDir = path.join(dataDir, 'generated-pdfs');
 
 function ensureStorage() {
@@ -20,6 +21,10 @@ function ensureStorage() {
 
   if (!fs.existsSync(auditFile)) {
     fs.writeFileSync(auditFile, JSON.stringify([], null, 2));
+  }
+
+  if (!fs.existsSync(pageViewsFile)) {
+    fs.writeFileSync(pageViewsFile, JSON.stringify([], null, 2));
   }
 }
 
@@ -87,6 +92,55 @@ export function updateCase(id, patch) {
 
 export function listAudit() {
   return readJson(auditFile);
+}
+
+export function listPageViews() {
+  return readJson(pageViewsFile);
+}
+
+export function recordPageView(entry = {}) {
+  ensureStorage();
+  const pageViews = listPageViews();
+  const record = {
+    id: entry.id || `pageview-${Date.now()}-${uuidv4().slice(0, 8)}`,
+    event: 'page_view',
+    timestamp: entry.timestamp || new Date().toISOString(),
+    path: entry.path || '/',
+    ip_hash: entry.ip_hash || null,
+    user_agent_hash: entry.user_agent_hash || null,
+    campaign_token: entry.campaign_token || null,
+    source: entry.source || 'poultryia-web',
+    referrer: entry.referrer || null,
+    session_id: entry.session_id || null
+  };
+
+  pageViews.unshift(record);
+  writeJson(pageViewsFile, pageViews);
+  writeAudit('page_view', { ...record });
+  return record;
+}
+
+export function getPageViewSummary() {
+  const pageViews = listPageViews();
+  const audit = listAudit();
+
+  const uniqueVisitors = new Set(
+    pageViews
+      .filter((item) => item.ip_hash && item.user_agent_hash)
+      .map((item) => `${item.ip_hash}|${item.user_agent_hash}`)
+  ).size;
+
+  const queriesInitiated = audit.filter((item) => item.event === 'case_created').length;
+  const queriesCompleted = audit.filter((item) => item.event === 'case_approved').length;
+  const conversionRate = pageViews.length > 0 ? (queriesCompleted / pageViews.length) * 100 : 0;
+
+  return {
+    total_visits: pageViews.length,
+    unique_visitors_approx: uniqueVisitors,
+    queries_initiated: queriesInitiated,
+    queries_completed: queriesCompleted,
+    conversion_rate_pct: Number(conversionRate.toFixed(2))
+  };
 }
 
 export function writeAudit(event, data = {}) {

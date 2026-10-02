@@ -6,9 +6,84 @@ Versión: 3.1
 Fecha: 2026-09-23
 Estado: Producción / operativo
 
+> Fuente de verdad del repositorio: [../docs/architecture/PROTOCOLO_GRAFOS_HARNESS.md](../docs/architecture/PROTOCOLO_GRAFOS_HARNESS.md)
+>
+> Este archivo es una referencia local para el módulo de Porcicultura y la demo. No debe convertirse en una segunda norma del proyecto. Cualquier cambio de política, checklist o gobernanza debe hacerse primero en el documento maestro y luego reflejarse aquí solo como resumen o vínculo.
+
 ---
 
-## 1. Propósito
+## 1. Plan de trabajo y ejecución para unificar la fuente de verdad
+
+### 1.0. Extensión del patrón a PoultryIA completa
+
+La implementación de `page_view` ya no queda acoplada solo a la demo. La versión canónica para todo el ecosistema se define en:
+
+- `common_utils/page_tracking.py` — helpers compartidos para hashing, normalización y persistencia.
+- `server_base/api_analytics.py` — endpoint compartido `/api/analytics/page-view` para los módulos que consumen la base API.
+
+Esto evita mantener una copia distinta por demo o módulo. Cuando un módulo quiera reportar visitas, debe reutilizar el mismo contrato: `event`, `path`, `ip_hash`, `user_agent_hash`, `campaign_token`, `source`, `referrer`, `session_id` y `timestamp`.
+
+
+### 1.1. Objetivo
+
+Evitar tres errores recurrentes en documentación técnica:
+
+- inconsistencias entre versiones del mismo protocolo,
+- decisiones contradictorias entre documentos de diferentes carpetas,
+- mantenimiento doble del mismo contenido con riesgo de drift.
+
+### 1.2. Regla operativa
+
+1. El documento maestro del repositorio es [../docs/architecture/PROTOCOLO_GRAFOS_HARNESS.md](../docs/architecture/PROTOCOLO_GRAFOS_HARNESS.md).
+2. Este archivo solo cumple función de referencia local para Porcicultura y la demo.
+3. Toda modificación de reglas, gates, evidencia o metodología debe hacerse en el documento maestro.
+4. Si una carpeta necesita una versión local, debe ser un resumen acotado, no una copia duplicada del mismo texto.
+
+### 1.3. Plan de ejecución
+
+1. Inventario de duplicados
+   - localizar todos los documentos que repitan el mismo protocolo o checklist,
+   - identificar diferencias semánticas y de versión,
+   - clasificar qué archivo es la autoridad del repositorio.
+
+2. Definición de autoridad documental
+   - declarar como fuente de verdad el documento con mayor alcance y uso global,
+   - dejar marcadas las referencias locales con una nota explícita de “resumen / referencia”.
+
+3. Congelación de ramas de contenido
+   - cualquier cambio sustantivo pasa por revisión del documento maestro,
+   - las copias locales solo pueden añadir contexto específico, no redefinir reglas.
+
+4. Control de consistencia
+   - revisar los enlaces entre documentos antes de cerrar una tarea,
+   - validar que no existan dos definiciones contradictorias del mismo gate,
+   - resolver divergencias antes de publicar en producción.
+
+5. Mantenimiento preventivo
+   - mantener una lista de “documentos derivados” con enlace al documento raíz,
+   - no editar reglas a menos que se haga en la fuente de verdad,
+   - documentar cambios con fecha, versión y responsable.
+
+### 1.4. Reglas de cierre
+
+- Si un cambio afecta la metodología, se edita primero la fuente principal.
+- Si la copia local necesita ajustarse, se hace como resumen contextual, no como redefinición.
+- Si se detecta una contradicción, la regla vigente es la del documento maestro.
+- Si dos archivos dicen lo mismo con distinta redacción, el repo queda en estado de conflicto y debe corregirse antes de cerrar la tarea.
+
+### 1.5. Checklist de prevención
+
+- [ ] Existe un único documento maestro para el protocolo.
+- [ ] Las copias locales no redefinen reglas.
+- [ ] El cambio se hace en la fuente de verdad antes de propagarse.
+- [ ] Hay una nota clara de referencia y no de autoridad.
+- [ ] Las versiones no divergen entre carpetas.
+- [ ] Los enlaces apuntan a la misma fuente real.
+- [ ] No se mantienen dos definiciones del mismo gate.
+
+---
+
+## 2. Propósito
 
 Este documento define los invariantes arquitectónicos, los quality gates y los requisitos de evidencia que deben cumplirse antes de cerrar cualquier tarea ejecutada por agentes IA, flujos ETL, scripts analíticos, automatizaciones de datos o procedimientos de corrección de producción dentro del ecosistema PoultryIA.
 
