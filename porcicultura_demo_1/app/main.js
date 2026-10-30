@@ -1743,6 +1743,13 @@ async function sendApprovedEmail() {
   saveMessage.textContent = "Enviando propuesta por correo...";
   sendEmailBtn.disabled = true;
 
+  // --- PASO 1: Guardar productos aprobados en approvedProtocols (para sincronizar con email) ---
+  const approvedRows = (currentCaseData.technicalApprovalRows || []).filter(
+    (row) => row.aprobado && String(row.viaAprobada || "").trim()
+  );
+  currentCaseData.approvedProtocols = approvedRows;
+  console.log(`[sendApprovedEmail] approvedProtocols guardado: ${approvedRows.length} productos`, approvedRows);
+
   // --- Intento 1: backend real vía API ---
   try {
     const backendPayload = {
@@ -1755,7 +1762,7 @@ async function sendApprovedEmail() {
       roiPct: Number(currentCaseData.financiero?.roi || 0)
     };
 
-    const caseResp = await fetch("/api/porc/cases", {
+    const caseResp = await fetch("/api/cases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(backendPayload),
@@ -1767,12 +1774,9 @@ async function sendApprovedEmail() {
       const caseId = caseResult.case?.id;
 
       if (caseId) {
-        const approvedRows = (currentCaseData.technicalApprovalRows || []).filter(
-          (row) => row.aprobado && String(row.viaAprobada || "").trim()
-        );
         const mainApproval = approvedRows[0] || {};
 
-        await fetch(`/api/porc/cases/${caseId}/approve`, {
+        await fetch(`/api/cases/${caseId}/approve`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1785,14 +1789,14 @@ async function sendApprovedEmail() {
           signal: AbortSignal.timeout(5000)
         });
 
-        const pdfResp = await fetch(`/api/porc/cases/${caseId}/render-pdf`, {
+        const pdfResp = await fetch(`/api/cases/${caseId}/render-pdf`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: AbortSignal.timeout(10000)
         });
 
         if (pdfResp.ok) {
-          const emailResp = await fetch(`/api/porc/cases/${caseId}/send-email`, {
+          const emailResp = await fetch(`/api/cases/${caseId}/send-email`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             signal: AbortSignal.timeout(10000)

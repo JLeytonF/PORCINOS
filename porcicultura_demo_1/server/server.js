@@ -208,9 +208,11 @@ function escapeHtml(value) {
 
 function resolveProtocolRows(payload = {}) {
   if (Array.isArray(payload.approvedProtocols) && payload.approvedProtocols.length) {
+    console.log(`[resolveProtocolRows] Usando approvedProtocols (${payload.approvedProtocols.length} productos)`);
     return payload.approvedProtocols;
   }
   if (Array.isArray(payload.protocolos) && payload.protocolos.length) {
+    console.warn(`[resolveProtocolRows] FALLBACK a protocolos COMPLETO (${payload.protocolos.length} productos). ¿approvedProtocols está vacío?`);
     return payload.protocolos;
   }
   return [];
@@ -220,6 +222,15 @@ function buildMailContent(caseRecord) {
   const payload = caseRecord?.payload || {};
   const approval = caseRecord?.approval || {};
   const jev = payload.jev || evaluateJEV(payload);
+  
+  // --- LOGGING DIAGNÓSTICO (Paso 3) ---
+  console.log(`[buildMailContent] caseRecord.id=${caseRecord.id}`);
+  console.log(`[buildMailContent] payload.approvedProtocols length=${(payload.approvedProtocols || []).length}`);
+  console.log(`[buildMailContent] payload.protocolos length=${(payload.protocolos || []).length}`);
+  if (payload.approvedProtocols?.length > 0) {
+    console.log(`[buildMailContent] approvedProtocols[0]:`, JSON.stringify(payload.approvedProtocols[0]));
+  }
+  
   const protocolos = resolveProtocolRows(payload);
   const approvedPriority = Array.isArray(payload.approvedPriorityOne) && payload.approvedPriorityOne.length
     ? payload.approvedPriorityOne
@@ -410,6 +421,29 @@ app.get('/api/porc/page-view', (req, res) => {
 });
 
 app.get('/api/porc/metrics', (req, res) => {
+  const metrics = getPageViewSummary();
+  res.json({ ok: true, metrics });
+});
+
+// Versiones sin /porc/ requeridas por nginx proxy_pass rewrite
+app.post('/api/page-view', (req, res) => {
+  try {
+    const payload = req.body || {};
+    const event = buildPageViewFromRequest(req, payload);
+    const record = recordPageView(event);
+    return res.status(201).json({ ok: true, pageView: record });
+  } catch (error) {
+    console.error('page-view error', error);
+    return res.status(500).json({ ok: false, message: 'No se pudo registrar la visita.', details: String(error.message || error) });
+  }
+});
+
+app.get('/api/page-view', (req, res) => {
+  const list = recordPageView(buildPageViewFromRequest(req, { path: normalizeRequestPath(req), source: 'poultryia-web' }));
+  res.json({ ok: true, pageView: list });
+});
+
+app.get('/api/metrics', (req, res) => {
   const metrics = getPageViewSummary();
   res.json({ ok: true, metrics });
 });

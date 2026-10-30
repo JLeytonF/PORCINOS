@@ -29,6 +29,10 @@ desktop.ini
 *.tmp
 *.bak
 _tmp_*
+tmp_*
+
+# Datos de runtime del servidor (generados en ejecución, no versionar)
+storage/
 
 # Archivos binarios grandes (PDFs, docx, pptx ya rastreados por separado)
 *.pdf
